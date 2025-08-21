@@ -128,27 +128,6 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
     actionsSection = section('Actions');
     buttonsRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
-    // Word-only document actions
-    if (isWord()) {
-      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => openWordDocumentFromUrl('/documents/default.docx') }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
-      const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
-      const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
-      filePick.onchange = async (e) => {
-        const f = e.target.files?.[0];
-        if (!f) return;
-        try {
-          const buf = await f.arrayBuffer();
-          const b64 = arrayBufferToBase64(buf);
-          await openWordDocumentFromBase64(b64);
-          log(`Opened ${f.name}`);
-        } catch (err) {
-          log(`open file ERR ${err?.message || err}`);
-        } finally {
-          e.target.value = '';
-        }
-      };
-      buttonsRow.append(viewLatestBtn, openNewBtn, filePick);
-    }
     actionsSection.append(buttonsRow);
 
     exhibitsSection = section('Exhibits');
@@ -243,6 +222,27 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
   function setButtons(config) {
     buttonsRow.innerHTML = '';
+    // Word-only document actions should always be present
+    if (isWord()) {
+      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => openWordDocumentFromUrl('/documents/default.docx') }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
+      const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
+      const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
+      filePick.onchange = async (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        try {
+          const buf = await f.arrayBuffer();
+          const b64 = arrayBufferToBase64(buf);
+          await openWordDocumentFromBase64(b64);
+          log(`Opened ${f.name}`);
+        } catch (err) {
+          log(`open file ERR ${err?.message || err}`);
+        } finally {
+          e.target.value = '';
+        }
+      };
+      buttonsRow.append(viewLatestBtn, openNewBtn, filePick);
+    }
     const addBtn = (label, onClick, visible = true) => {
       if (!visible) return;
       buttonsRow.append(el('button', { class: 'ms-Button', onclick: onClick }, [el('span', { class: 'ms-Button-label' }, [label]) ]));
