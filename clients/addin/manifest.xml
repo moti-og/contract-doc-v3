@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
   <Id>7a514d73-03c9-4a9f-a5f3-c246ac785751</Id>
-  <Version>1.0.0.0</Version>
+  <Version>1.0.1.0</Version>
   <ProviderName>Contoso</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="OG CLM Yo"/>
+  <DisplayName DefaultValue="OG CLM"/>
   <Description DefaultValue="A template to get started."/>
   <IconUrl DefaultValue="https://localhost:4000/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://localhost:4000/assets/icon-64.png"/>
