@@ -150,17 +150,24 @@ app.get('/api/v1/current-document', (req, res) => {
 
 app.get('/api/v1/state-matrix', (req, res) => {
   const { userRole = 'editor', platform = 'web', userId = 'user1' } = req.query;
+  const isCheckedOut = !!serverState.checkedOutBy;
+  const isOwner = serverState.checkedOutBy === userId;
+  const canWrite = !isCheckedOut || isOwner;
   const config = {
     buttons: {
       replaceDefaultBtn: true,
       compileBtn: true,
       approvalsBtn: true,
-      finalizeBtn: userRole === 'editor' && !serverState.isFinal,
-      unfinalizeBtn: userRole === 'editor' && serverState.isFinal,
+      finalizeBtn: userRole === 'editor' && !serverState.isFinal && canWrite,
+      unfinalizeBtn: userRole === 'editor' && serverState.isFinal && canWrite,
+      checkoutBtn: !isCheckedOut,
+      checkinBtn: isOwner,
     },
     finalize: { isFinal: serverState.isFinal },
-    checkoutStatus: { isCheckedOut: !!serverState.checkedOutBy, checkedOutUserId: serverState.checkedOutBy },
-    viewerMessage: { type: 'info', text: `Hello ${userId} on ${platform}` },
+    checkoutStatus: { isCheckedOut, checkedOutUserId: serverState.checkedOutBy },
+    viewerMessage: isCheckedOut
+      ? { type: isOwner ? 'info' : 'warning', text: isOwner ? `Checked out by you` : `Checked out by ${serverState.checkedOutBy}` }
+      : { type: 'success', text: 'Available for editing' },
   };
   res.json({ config });
 });
@@ -203,6 +210,32 @@ app.post('/api/v1/document/revert', (req, res) => {
   if (fs.existsSync(working)) fs.rmSync(working);
   serverState.lastUpdated = new Date().toISOString();
   broadcast({ type: 'documentRevert' });
+  res.json({ ok: true });
+});
+
+// Checkout/Checkin endpoints
+app.post('/api/v1/checkout', (req, res) => {
+  const userId = req.body?.userId || 'user1';
+  if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
+    return res.status(409).json({ error: `Already checked out by ${serverState.checkedOutBy}` });
+  }
+  serverState.checkedOutBy = userId;
+  serverState.lastUpdated = new Date().toISOString();
+  broadcast({ type: 'checkout', userId });
+  res.json({ ok: true, checkedOutBy: userId });
+});
+
+app.post('/api/v1/checkin', (req, res) => {
+  const userId = req.body?.userId || 'user1';
+  if (!serverState.checkedOutBy) {
+    return res.status(409).json({ error: 'Not checked out' });
+  }
+  if (serverState.checkedOutBy !== userId) {
+    return res.status(409).json({ error: `Checked out by ${serverState.checkedOutBy}` });
+  }
+  serverState.checkedOutBy = null;
+  serverState.lastUpdated = new Date().toISOString();
+  broadcast({ type: 'checkin', userId });
   res.json({ ok: true });
 });
 

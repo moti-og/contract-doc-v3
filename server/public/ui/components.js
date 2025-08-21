@@ -25,6 +25,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let statusBox;
   let buttonsRow;
   let sse;
+  let currentUser = 'user1';
+  let currentRole = 'editor';
 
   const log = (m) => {
     if (!statusBox) return;
@@ -34,7 +36,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   };
 
   async function fetchMatrix() {
-    const params = new URLSearchParams({ userRole: 'editor', platform: detectPlatform(), userId: 'user1' });
+    const params = new URLSearchParams({ userRole: currentRole, platform: detectPlatform(), userId: currentUser });
     const res = await fetch(`/api/v1/state-matrix?${params.toString()}`);
     if (!res.ok) throw new Error('matrix');
     return res.json();
@@ -47,9 +49,20 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
   function ensureDom() {
     if (initialized) return;
-    const header = el('div', { style: { padding: '8px 0', fontWeight: '600' } }, [
+    const header = el('div', { style: { padding: '8px 0', fontWeight: '600', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
       `Shared UI — Platform: ${detectPlatform()}`,
     ]);
+    const userSel = el('select', { onchange: (e) => { currentUser = e.target.value; updateUI(); } }, [
+      el('option', { value: 'user1', selected: 'selected' }, ['user1']),
+      el('option', { value: 'user2' }, ['user2']),
+      el('option', { value: 'user3' }, ['user3']),
+    ]);
+    const roleSel = el('select', { onchange: (e) => { currentRole = e.target.value; updateUI(); } }, [
+      el('option', { value: 'editor', selected: 'selected' }, ['editor']),
+      el('option', { value: 'vendor' }, ['vendor']),
+      el('option', { value: 'viewer' }, ['viewer']),
+    ]);
+    header.append(el('span', {}, ['User: ']), userSel, el('span', {}, ['Role: ']), roleSel);
     buttonsRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' } });
     statusBox = el('div', { style: { fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', maxHeight: '160px', overflow: 'auto', marginTop: '8px' } });
     root.append(header, buttonsRow, statusBox);
@@ -79,6 +92,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     };
     addBtn('Finalize', async () => { try { await doPost('/api/v1/finalize'); log('finalize OK'); await updateUI(); } catch(e){ log(`finalize ERR ${e.message}`);} }, !!config.buttons.finalizeBtn);
     addBtn('Unfinalize', async () => { try { await doPost('/api/v1/unfinalize'); log('unfinalize OK'); await updateUI(); } catch(e){ log(`unfinalize ERR ${e.message}`);} }, !!config.buttons.unfinalizeBtn);
+    addBtn('Checkout', async () => { try { await fetch('/api/v1/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkout OK'); await updateUI(); } catch(e){ log(`checkout ERR ${e.message}`);} }, !!config.buttons.checkoutBtn);
+    addBtn('Checkin', async () => { try { await fetch('/api/v1/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
     addBtn('Revert to Canonical', async () => { try { await doPost('/api/v1/document/revert'); log('revert OK'); } catch(e){ log(`revert ERR ${e.message}`);} }, true);
   }
 
