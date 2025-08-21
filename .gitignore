@@ -1,0 +1,5 @@
+﻿data/working/
+clients/addin/dist/
+clients/web/dist/
+*.log
+

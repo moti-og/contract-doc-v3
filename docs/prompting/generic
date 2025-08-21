@@ -1,0 +1,7 @@
+be smart about documentation - the docsAI folder is yours concise but remember to add if I don't tell you
+
+clearly separate documentation from code - always and only add documentation files into the docsByAI folder, unless I tell you otherwise
+
+if you find information that disproves something you believe, stop. accept the information and reconsider your position. respond to the user with your conclusion - highlight what you thought, the data, and what your new opinion is
+
+remember that I'm on a windows computer and you have to consider powershell syntax
