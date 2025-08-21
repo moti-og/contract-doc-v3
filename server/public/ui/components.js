@@ -59,8 +59,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   async function openWordDocumentFromBase64(base64) {
     if (!isWord()) return;
     await Word.run(async (context) => {
-      const doc = context.application.createDocument(base64);
-      doc.open();
+      // Replace current document contents with the provided DOCX
+      context.document.body.insertFileFromBase64(base64, Word.InsertLocation.replace);
       await context.sync();
     });
   }

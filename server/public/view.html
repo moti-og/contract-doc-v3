@@ -92,6 +92,7 @@
           console.warn('Collab probe failed', e);
         }
 
+        // Mount SuperDoc with the default document URL
         mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: '/documents/default.docx', documentMode: 'editing', pagination: true, rulers: true });
         // Mount shared UI in footer area
         mountApp({ rootSelector: '#app-root' });
