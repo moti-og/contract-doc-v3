@@ -1,0 +1,7 @@
+{
+  "editor": { "finalize": true, "unfinalize": true, "checkout": true, "checkin": true },
+  "vendor": { "finalize": false, "unfinalize": false, "checkout": false, "checkin": false },
+  "viewer": { "finalize": false, "unfinalize": false, "checkout": false, "checkin": false }
+}
+
+

@@ -110,7 +110,18 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     // Connection + last event badges
     connectionBadge = el('span', { id: 'conn-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['disconnected']);
     lastEventBadge = el('span', { id: 'last-event-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['last: —']);
-    const userSel = el('select', { onchange: async (e) => { currentUser = e.target.value; log(`user set to ${currentUser}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } });
+    const userSel = el('select', { onchange: async (e) => { 
+      currentUser = e.target.value; 
+      // When user changes, default the role to the user's configured role if present
+      try {
+        const opt = e.target.selectedOptions?.[0];
+        const r = opt?.getAttribute('data-role');
+        if (r) { currentRole = r; roleSel.value = r; }
+      } catch {}
+      log(`user set to ${currentUser}`);
+      try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {}
+      updateUI();
+    } });
     userSelectEl = userSel;
     const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, [
       el('option', { value: 'editor', selected: 'selected' }, ['editor']),
@@ -315,17 +326,19 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     try {
       const r = await fetch('/api/v1/users');
       const j = await r.json();
-      const items = Array.isArray(j.items) ? j.items : ['user1','user2','user3'];
+      const items = Array.isArray(j.items) ? j.items : [];
       if (userSelectEl) {
         userSelectEl.innerHTML = '';
         let found = false;
         for (const u of items) {
-          const selected = u === currentUser ? 'selected' : null;
+          const id = u.id || u.label;
+          const label = u.label || id;
+          const selected = id === currentUser ? 'selected' : null;
           if (selected) found = true;
-          userSelectEl.append(el('option', { value: u, selected }, [u]));
+          userSelectEl.append(el('option', { value: id, selected, 'data-role': u.role || 'editor' }, [label]));
         }
         if (!found && items.length) {
-          currentUser = items[0];
+          currentUser = items[0].id || items[0].label;
           userSelectEl.value = currentUser;
         }
       }

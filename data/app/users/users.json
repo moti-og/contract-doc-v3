@@ -1,8 +1,8 @@
 [
-  "user1",
-  "user2",
-  "user3",
-  "user4"
+  { "id": "user1", "label": "Editor 1", "role": "editor" },
+  { "id": "user2", "label": "Editor 2", "role": "editor" },
+  { "id": "user3", "label": "Vendor A",  "role": "vendor" },
+  { "id": "user4", "label": "Viewer B",  "role": "viewer" }
 ]
 
 
