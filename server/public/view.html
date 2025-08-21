@@ -94,12 +94,17 @@
 
         // Mount SuperDoc with the default document URL
         const mount = (doc) => mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: 'editing', pagination: true, rulers: true });
-        const toolbar = document.getElementById('superdoc-toolbar');
-        const container = document.getElementById('superdoc');
+        const editorCol = document.getElementById('editor-col');
         const render = (doc) => {
-          // Reset both toolbar and editor containers to avoid leftover state
-          toolbar.innerHTML = '';
-          container.innerHTML = '';
+          console.log('Render SuperDoc with', doc);
+          // Replace toolbar/editor nodes entirely to guarantee a clean mount
+          const oldToolbar = document.getElementById('superdoc-toolbar');
+          const oldContainer = document.getElementById('superdoc');
+          const newToolbar = document.createElement('div'); newToolbar.id = 'superdoc-toolbar';
+          const newContainer = document.createElement('div'); newContainer.id = 'superdoc';
+          newContainer.style.flex = '1';
+          oldToolbar?.replaceWith(newToolbar);
+          oldContainer?.replaceWith(newContainer);
           // Normalize URL to absolute
           if (typeof doc === 'string') {
             try { doc = new URL(doc, location.origin).href; } catch {}
