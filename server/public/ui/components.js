@@ -27,6 +27,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let sse;
   let currentUser = 'user1';
   let currentRole = 'editor';
+  let currentDocumentId = null;
 
   const log = (m) => {
     if (!statusBox) return;
@@ -72,14 +73,20 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     try {
       sse = new EventSource('/api/v1/events');
       sse.onmessage = (ev) => {
-        log(`SSE ${ev.data}`);
-        // Refresh UI on relevant events
+        // Ignore events for other documents
         try {
           const payload = JSON.parse(ev.data);
-          if (payload?.type === 'finalize' || payload?.type === 'documentUpload' || payload?.type === 'documentRevert') {
+          if (payload?.documentId && currentDocumentId && payload.documentId !== currentDocumentId) {
+            log(`SSE ignored (doc mismatch: ${payload.documentId} != ${currentDocumentId})`);
+            return;
+          }
+          log(`SSE ${ev.data}`);
+          if (payload?.type === 'finalize' || payload?.type === 'documentUpload' || payload?.type === 'documentRevert' || payload?.type === 'checkout' || payload?.type === 'checkin') {
             updateUI();
           }
-        } catch {}
+        } catch {
+          log(`SSE parse ERR`);
+        }
       };
     } catch {}
   }
@@ -101,14 +108,14 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     try {
       const { config } = await fetchMatrix();
       if (config?.documentId) {
-        // Surface the documentId in header for quick visibility
-        // Find or create a small pill element in the header
-        // Since we didn't retain a ref, prepend a badge if not present
+        currentDocumentId = config.documentId;
         const badgeId = 'doc-id-badge';
-        if (!document.getElementById(badgeId)) {
-          const badge = el('span', { id: badgeId, style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, [`doc: ${config.documentId}`]);
+        let badge = document.getElementById(badgeId);
+        if (!badge) {
+          badge = el('span', { id: badgeId, style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } });
           root.firstChild?.append(badge);
         }
+        badge.textContent = `doc: ${currentDocumentId}`;
       }
       setButtons(config);
     } catch (e) {
