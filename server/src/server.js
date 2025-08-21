@@ -12,6 +12,10 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const APP_PORT = Number(process.env.PORT || 4001);
 const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || 'http://localhost:4002';
 const ADDIN_DEV_ORIGIN = process.env.ADDIN_DEV_ORIGIN || 'https://localhost:4000';
+const SSE_RETRY_MS = (() => {
+  const v = Number(process.env.SSE_RETRY_MS || 3000);
+  return Number.isFinite(v) && v > 0 ? v : 3000;
+})();
 
 // Paths
 const rootDir = path.resolve(__dirname, '..', '..');
@@ -317,7 +321,7 @@ app.get('/api/v1/events', (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders?.();
   sseClients.add(res);
-  res.write('retry: 3000\n\n');
+  res.write(`retry: ${SSE_RETRY_MS}\n\n`);
   res.flush?.();
   // Send an initial hello event so clients see activity immediately after connect
   try {
