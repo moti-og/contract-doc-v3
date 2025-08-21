@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>SuperDoc Viewer</title>
+  <!-- SuperDoc styles (local) -->
+  <link href="/static/vendor/superdoc/style.css" rel="stylesheet" />
+  <link rel="icon" href="data:,"/>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    #superdoc-toolbar { border-bottom: 1px solid #ddd; }
+  </style>
+  <!-- Load local SuperDoc UMD before module init -->
+  <script src="/static/vendor/superdoc/superdoc.umd.min.js"></script>
+  <script type="module">
+    import { mountSuperdoc } from '/static/superdoc-init.js';
+    window.addEventListener('load', async () => {
+      try {
+        console.log('SuperDoc globals', {
+          SuperDoc: typeof window.SuperDoc,
+          SuperDocLibrary: typeof window.SuperDocLibrary,
+          superdocKeys: Object.keys(window.superdoc || {}),
+        });
+        const res = await fetch('/documents/default.docx', { method: 'HEAD' });
+        if (!res.ok) throw new Error('default.docx not found');
+        mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: '/documents/default.docx', documentMode: 'editing', pagination: true, rulers: true });
+      } catch (e) {
+        const el = document.getElementById('superdoc');
+        el.innerHTML = `<div style=\"padding:16px\">Failed to initialize: ${e?.message || e}.<br/>Open <a href=\"/debug\">/debug</a> to verify current document and uploads.</div>`;
+        console.error('View init error', e);
+      }
+    });
+  </script>
+</head>
+<body>
+  <div id="superdoc-toolbar"></div>
+  <div id="superdoc" style="height: calc(100vh - 48px);"></div>
+</body>
+</html>
+
