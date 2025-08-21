@@ -51,7 +51,6 @@ app.use(express.json({ limit: '10mb' }));
 // CORS for Yeoman add-in dev server (e.g., https://localhost:4000)
 const allowedOrigins = new Set([
   'https://localhost:4000',
-  'https://localhost:4001',
 ]);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
