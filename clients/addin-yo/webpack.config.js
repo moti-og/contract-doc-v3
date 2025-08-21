@@ -39,7 +39,20 @@ module.exports = async (env, options) => {
         {
           test: /\.html$/,
           exclude: /node_modules/,
-          use: "html-loader",
+          use: {
+            loader: "html-loader",
+            options: {
+              // Do not attempt to bundle server-served assets; let the browser fetch via proxy
+              sources: {
+                urlFilter: (attr, value) => {
+                  if (typeof value !== 'string') return true;
+                  if (value.startsWith('/static/')) return false;
+                  if (value.startsWith('https://localhost:4001/')) return false;
+                  return true;
+                },
+              },
+            },
+          },
         },
         {
           test: /\.(png|jpg|jpeg|gif|ico)$/,
@@ -90,6 +103,16 @@ module.exports = async (env, options) => {
         options: env.WEBPACK_BUILD || options.https !== undefined ? options.https : await getHttpsOptions(),
       },
       port: process.env.npm_package_config_dev_server_port || 4000,
+      proxy: [
+        {
+          context: ['/static', '/documents', '/api', '/collab'],
+          target: 'https://localhost:4001',
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+          logLevel: 'warn',
+        },
+      ],
     },
   };
 
