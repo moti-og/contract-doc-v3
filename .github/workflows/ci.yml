@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main, develop, feat/** ]
+
+jobs:
+  server-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install server deps
+        run: |
+          cd server
+          npm ci --no-audit --no-fund
+      - name: Start backend
+        run: |
+          cd server
+          node src/server.js &
+          echo $! > ../server.pid
+          sleep 2
+      - name: Run tests
+        run: |
+          cd server
+          npm test --silent
+      - name: Smoke via 4001
+        run: |
+          pwsh tools/scripts/smoke.ps1
+        shell: pwsh
+      - name: Stop backend
+        if: always()
+        run: |
+          kill $(cat server.pid) || true
+
+

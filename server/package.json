@@ -7,7 +7,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --config jest.config.js"
   },
   "keywords": [],
   "author": "",
@@ -17,5 +17,8 @@
     "express": "^5.1.0",
     "multer": "^2.0.2",
     "http-proxy-middleware": "^2.0.6"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
