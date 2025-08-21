@@ -1,8 +1,6 @@
-version: "3.9"
-
 services:
   superdoc:
-    image: harbourenterprises/superdoc:latest
+    build: ../../collab
     container_name: superdoc
     restart: unless-stopped
     ports:
@@ -10,8 +8,7 @@ services:
     environment:
       - NODE_ENV=development
       - SUPERDOC_PORT=4100
-      # Add any required env once docs confirm (e.g., license, storage paths)
     # volumes:
-    #   - ./data/working/superdoc:/data
+    #   - ../../data/working/superdoc:/data
 
 
