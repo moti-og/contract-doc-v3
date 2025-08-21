@@ -53,12 +53,12 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     const header = el('div', { style: { padding: '8px 0', fontWeight: '600', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
       `Shared UI — Platform: ${detectPlatform()}`,
     ]);
-    const userSel = el('select', { onchange: (e) => { currentUser = e.target.value; updateUI(); } }, [
+    const userSel = el('select', { onchange: (e) => { currentUser = e.target.value; log(`user set to ${currentUser}`); updateUI(); } }, [
       el('option', { value: 'user1', selected: 'selected' }, ['user1']),
       el('option', { value: 'user2' }, ['user2']),
       el('option', { value: 'user3' }, ['user3']),
     ]);
-    const roleSel = el('select', { onchange: (e) => { currentRole = e.target.value; updateUI(); } }, [
+    const roleSel = el('select', { onchange: (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); updateUI(); } }, [
       el('option', { value: 'editor', selected: 'selected' }, ['editor']),
       el('option', { value: 'vendor' }, ['vendor']),
       el('option', { value: 'viewer' }, ['viewer']),
