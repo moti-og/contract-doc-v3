@@ -25,16 +25,21 @@ function Start-Dev() {
   Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","cd '$root\\clients\\addin'; npm run dev-server" -WindowStyle Minimized -PassThru
 }
 
+function Start-Collab() {
+  $root = Split-Path -Parent $PSCommandPath | Split-Path -Parent | Split-Path -Parent
+  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","cd '$root'; node collab/server.js" -WindowStyle Minimized -PassThru
+}
+
 function Show-Status() {
-  $conns = Get-NetTCPConnection -LocalPort 4000,4001 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,OwningProcess,State
+  $conns = Get-NetTCPConnection -LocalPort 4000,4001,4002 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,OwningProcess,State
   if ($conns) { $conns | Format-Table -AutoSize | Out-Host } else { Write-Host "No listeners on 4000/4001" }
 }
 
 switch ($Action) {
   'status'   { Show-Status }
-  'stop'     { Stop-Port 4000; Stop-Port 4001; Show-Status }
-  'start'    { Stop-Port 4000; Stop-Port 4001; $b=Start-Backend; Start-Sleep -Seconds 1; $d=Start-Dev; Write-Host "Backend PID: $($b.Id)  Dev PID: $($d.Id)"; Start-Sleep -Seconds 1; Show-Status }
-  'restart'  { Stop-Port 4000; Stop-Port 4001; $b=Start-Backend; Start-Sleep -Seconds 1; $d=Start-Dev; Write-Host "Backend PID: $($b.Id)  Dev PID: $($d.Id)"; Start-Sleep -Seconds 1; Show-Status }
+  'stop'     { Stop-Port 4000; Stop-Port 4001; Stop-Port 4002; Show-Status }
+  'start'    { Stop-Port 4000; Stop-Port 4001; Stop-Port 4002; $c=Start-Collab; Start-Sleep -Seconds 1; $b=Start-Backend; Start-Sleep -Seconds 1; $d=Start-Dev; Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Dev PID: $($d.Id)"; Start-Sleep -Seconds 1; Show-Status }
+  'restart'  { Stop-Port 4000; Stop-Port 4001; Stop-Port 4002; $c=Start-Collab; Start-Sleep -Seconds 1; $b=Start-Backend; Start-Sleep -Seconds 1; $d=Start-Dev; Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Dev PID: $($d.Id)"; Start-Sleep -Seconds 1; Show-Status }
 }
 
 
