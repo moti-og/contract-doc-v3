@@ -17,7 +17,7 @@ function Stop-Port([int]$Port) {
 
 function Start-Backend() {
   $root = Split-Path -Parent $PSCommandPath | Split-Path -Parent | Split-Path -Parent
-  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","$env:SUPERDOC_BASE_URL='http://localhost:4100'; cd '$root'; node server/src/server.js" -WindowStyle Minimized -PassThru
+  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","$env:SUPERDOC_BASE_URL='http://localhost:4002'; cd '$root'; node server/src/server.js" -WindowStyle Minimized -PassThru
 }
 
 function Start-Dev() {
@@ -27,19 +27,19 @@ function Start-Dev() {
 
 function Start-Collab() {
   $root = Split-Path -Parent $PSCommandPath | Split-Path -Parent | Split-Path -Parent
-  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","cd '$root\\collab'; if (Test-Path package.json) { npm install --no-audit --no-fund; npm start } else { cd '$root'; node collab/server.js }" -WindowStyle Minimized -PassThru
+  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","cd '$root'; node collab/server.js" -WindowStyle Minimized -PassThru
 }
 
 function Show-Status() {
-  $conns = Get-NetTCPConnection -LocalPort 4000,4001,4100 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,OwningProcess,State
+  $conns = Get-NetTCPConnection -LocalPort 4000,4001,4002 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,OwningProcess,State
   if ($conns) { $conns | Format-Table -AutoSize | Out-Host } else { Write-Host "No listeners on 4000/4001" }
 }
 
 switch ($Action) {
   'status'   { Show-Status }
-  'stop'     { Stop-Port 4000; Stop-Port 4001; Stop-Port 4100; Show-Status }
-  'start'    { Stop-Port 4000; Stop-Port 4001; Stop-Port 4100; $c=Start-Collab; Start-Sleep -Seconds 1; $b=Start-Backend; Start-Sleep -Seconds 1; $d=Start-Dev; Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Dev PID: $($d.Id)"; Start-Sleep -Seconds 1; Show-Status }
-  'restart'  { Stop-Port 4000; Stop-Port 4001; Stop-Port 4100; $c=Start-Collab; Start-Sleep -Seconds 1; $b=Start-Backend; Start-Sleep -Seconds 1; $d=Start-Dev; Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Dev PID: $($d.Id)"; Start-Sleep -Seconds 1; Show-Status }
+  'stop'     { Stop-Port 4000; Stop-Port 4001; Stop-Port 4002; Show-Status }
+  'start'    { Stop-Port 4000; Stop-Port 4001; Stop-Port 4002; $c=Start-Collab; Start-Sleep -Seconds 1; $b=Start-Backend; Start-Sleep -Seconds 1; $d=Start-Dev; Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Dev PID: $($d.Id)"; Start-Sleep -Seconds 1; Show-Status }
+  'restart'  { Stop-Port 4000; Stop-Port 4001; Stop-Port 4002; $c=Start-Collab; Start-Sleep -Seconds 1; $b=Start-Backend; Start-Sleep -Seconds 1; $d=Start-Dev; Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Dev PID: $($d.Id)"; Start-Sleep -Seconds 1; Show-Status }
 }
 
 
