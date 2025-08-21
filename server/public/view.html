@@ -28,7 +28,7 @@
         // Probe collab backend (non-blocking for now)
         try {
           const health = await fetch('/api/v1/health').then(r => r.json()).catch(() => null);
-          const httpUrl = health?.superdoc || 'http://localhost:4100';
+          const httpUrl = health?.superdoc || 'http://localhost:4002';
           const wsUrl = httpUrl.replace(/^http(s)?:\/\//, (m, s) => s ? 'wss://' : 'ws://');
           const sock = new WebSocket(wsUrl);
           sock.onopen = () => console.log('Collab WS connected', wsUrl);

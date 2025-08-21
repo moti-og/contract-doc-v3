@@ -1,6 +1,6 @@
 # Simple smoke test for unified server
 # Usage:
-#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/smoke.ps1 -Origin http://localhost:3007
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/smoke.ps1 -Origin http://localhost:4001
 
 param(
 	[string]$Origin = $env:ORIGIN

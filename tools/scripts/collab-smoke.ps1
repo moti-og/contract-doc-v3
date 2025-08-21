@@ -1,6 +1,6 @@
 # Simple smoke test for collab backend (Docker + TCP)
 # Usage:
-#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/collab-smoke.ps1 -Port 4100
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/collab-smoke.ps1 -Port 4002
 
 param(
 	[int]$Port = 4002,

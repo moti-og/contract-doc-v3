@@ -29,7 +29,7 @@
 ## SuperDoc backend (local)
 - Run the SuperDoc collaboration backend in a container on `https://localhost:4002`.
 - Exact image name and environment variables come from the SuperDoc docs: https://docs.superdoc.dev/
-- Ensure CORS allows `https://localhost:3001` and that TLS is enabled for local testing.
+- Ensure CORS allows `https://localhost:4001` and that TLS is enabled for local testing.
 
 ## HTTPS dev certificate (server)
 - We use a trusted local certificate for `https://localhost:4001`.
@@ -37,7 +37,7 @@
 
 ## Next steps
 - Start Docker Desktop
-- Run the SuperDoc backend container on port 4100 per vendor instructions
+- Run the SuperDoc backend container exposing host port 4002 (container listens on 4100)
 - Start the Node server on port 4001 (HTTPS) to serve both clients and shared modules
 - Open the web client and the Word add‑in (manifest points to the same origin)
 

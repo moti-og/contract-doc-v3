@@ -27,7 +27,7 @@
 - `server/public/ui/components.js`: exports React components + `mountApp(...)`
 - `clients/web/public/index.html`: contains `#superdoc-toolbar`, `#superdoc`, and `#app-root`; imports bootstrap and UI module
 - `clients/addin/src/taskpane.html`: same divs; imports the same modules
-- `clients/addin/manifest/manifest.xml`: taskpane manifest (served URLs on port 3001)
+- `clients/addin/manifest/manifest.xml`: taskpane manifest (served URLs on port 4001)
 - `data/app/documents/default.docx`: canonical default document
 - `data/app/exhibits/`: seed exhibits (optional)
 - `data/working/`: uploads/temp/logs (ignored by VCS)
