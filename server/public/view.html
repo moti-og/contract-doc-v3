@@ -93,7 +93,14 @@
         }
 
         // Mount SuperDoc with the default document URL
-        mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: '/documents/default.docx', documentMode: 'editing', pagination: true, rulers: true });
+        const mount = (doc) => mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: 'editing', pagination: true, rulers: true });
+        const container = document.getElementById('superdoc');
+        const mountFresh = (doc) => { container.innerHTML = ''; mount(doc); };
+        // Initial load
+        mount('/documents/default.docx');
+        // Listen for UI requests to open other docs
+        window.addEventListener('superdoc:open-url', (e) => { try { mountFresh(e.detail?.url || '/documents/default.docx'); } catch(err) { console.warn('open-url failed', err); } });
+        window.addEventListener('superdoc:open-file', (e) => { try { const f = e.detail?.file; if (f) mountFresh(f); } catch(err) { console.warn('open-file failed', err); } });
         // Mount shared UI in footer area
         mountApp({ rootSelector: '#app-root' });
       } catch (e) {

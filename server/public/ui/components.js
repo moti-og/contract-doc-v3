@@ -242,6 +242,24 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         }
       };
       buttonsRow.append(viewLatestBtn, openNewBtn, filePick);
+    } else {
+      // Web: ask host page to swap SuperDoc document
+      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/default.docx' } })) }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
+      const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
+      const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
+      filePick.onchange = async (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        try {
+          window.dispatchEvent(new CustomEvent('superdoc:open-file', { detail: { file: f } }));
+          log(`Opened ${f.name} in web`);
+        } catch (err) {
+          log(`open file ERR ${err?.message || err}`);
+        } finally {
+          e.target.value = '';
+        }
+      };
+      buttonsRow.append(viewLatestBtn, openNewBtn, filePick);
     }
     const addBtn = (label, onClick, visible = true) => {
       if (!visible) return;
