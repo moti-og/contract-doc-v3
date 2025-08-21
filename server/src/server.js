@@ -6,6 +6,7 @@ const https = require('https');
 const express = require('express');
 const compression = require('compression');
 const multer = require('multer');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 // Configuration
 const APP_PORT = Number(process.env.PORT || 4001);
@@ -47,8 +48,37 @@ const app = express();
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 
+// CORS for Yeoman add-in dev server (e.g., https://localhost:4000)
+const allowedOrigins = new Set([
+  'https://localhost:4000',
+  'https://localhost:4001',
+]);
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  next();
+});
+
 // Static assets
 app.use('/static', express.static(publicDir, { fallthrough: true }));
+
+// WebSocket reverse proxy for collaboration under same HTTPS origin
+const COLLAB_TARGET = process.env.COLLAB_TARGET || 'http://localhost:4002';
+const collabProxy = createProxyMiddleware({
+  target: COLLAB_TARGET,
+  changeOrigin: true,
+  ws: true,
+  secure: false,
+  logLevel: 'warn',
+});
+app.use('/collab', collabProxy);
 
 // Quiet favicon 404s
 app.get('/favicon.ico', (_req, res) => res.status(204).end());
@@ -220,16 +250,28 @@ function tryCreateHttpsServer() {
 }
 
 const httpsServer = tryCreateHttpsServer();
+let serverInstance;
 if (httpsServer) {
+  serverInstance = httpsServer;
   httpsServer.listen(APP_PORT, () => {
     console.log(`HTTPS server running on https://localhost:${APP_PORT}`);
     console.log(`SuperDoc backend: ${SUPERDOC_BASE_URL}`);
   });
 } else {
-  http.createServer(app).listen(APP_PORT, () => {
+  serverInstance = http.createServer(app);
+  serverInstance.listen(APP_PORT, () => {
     console.warn(`Dev cert not found. HTTP server running on http://localhost:${APP_PORT}`);
     console.warn('Set SSL_KEY_PATH and SSL_CERT_PATH or place dev certs under server/config to enable HTTPS.');
   });
 }
+
+// Attach WS upgrade for collab proxy
+try {
+  serverInstance.on('upgrade', (req, socket, head) => {
+    if (req.url && req.url.startsWith('/collab')) {
+      collabProxy.upgrade(req, socket, head);
+    }
+  });
+} catch {}
 
 
