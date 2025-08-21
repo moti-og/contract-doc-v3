@@ -125,10 +125,26 @@ function resolveDefaultDocPath() {
 
 // Files: exhibits listing (canonical only for now)
 function listExhibits() {
-  if (!fs.existsSync(canonicalExhibitsDir)) return [];
-  return fs.readdirSync(canonicalExhibitsDir)
-    .filter(f => !fs.statSync(path.join(canonicalExhibitsDir, f)).isDirectory())
-    .map(name => ({ name, url: `/exhibits/${encodeURIComponent(name)}` }));
+  const names = new Set();
+  const items = [];
+  // Prefer working copies first
+  if (fs.existsSync(workingExhibitsDir)) {
+    for (const f of fs.readdirSync(workingExhibitsDir)) {
+      const p = path.join(workingExhibitsDir, f);
+      if (fs.statSync(p).isDirectory()) continue;
+      names.add(f);
+      items.push({ name: f, url: `/exhibits/${encodeURIComponent(f)}` });
+    }
+  }
+  if (fs.existsSync(canonicalExhibitsDir)) {
+    for (const f of fs.readdirSync(canonicalExhibitsDir)) {
+      if (names.has(f)) continue; // working overrides
+      const p = path.join(canonicalExhibitsDir, f);
+      if (fs.statSync(p).isDirectory()) continue;
+      items.push({ name: f, url: `/exhibits/${encodeURIComponent(f)}` });
+    }
+  }
+  return items;
 }
 
 // Serve default document bytes
@@ -141,7 +157,9 @@ app.get('/documents/default.docx', (req, res) => {
 
 // Serve canonical exhibits
 app.get('/exhibits/:name', (req, res) => {
-  const p = path.join(canonicalExhibitsDir, req.params.name);
+  const w = path.join(workingExhibitsDir, req.params.name);
+  const c = path.join(canonicalExhibitsDir, req.params.name);
+  const p = fs.existsSync(w) ? w : c;
   if (!fs.existsSync(p)) return res.status(404).send('exhibit not found');
   res.setHeader('Content-Disposition', `inline; filename="${req.params.name}"`);
   res.sendFile(p);
