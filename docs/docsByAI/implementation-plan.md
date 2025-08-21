@@ -26,8 +26,8 @@
 - `server/public/superdoc-init.js`: exports `mountSuperdoc(options)`; calls `new SuperDoc(...)`
 - `server/public/ui/components.js`: exports React components + `mountApp(...)`
 - `clients/web/public/index.html`: contains `#superdoc-toolbar`, `#superdoc`, and `#app-root`; imports bootstrap and UI module
-- `clients/addin/src/taskpane.html`: same divs; imports the same modules
-- `clients/addin/manifest/manifest.xml`: taskpane manifest (served URLs on port 4001)
+- `clients/addin-yo/src/taskpane/taskpane.html`: Yeoman taskpane (served by dev server on 4000)
+- `clients/addin-yo/manifest.xml`: taskpane manifest (served URLs on port 4000)
 - `data/app/documents/default.docx`: canonical default document
 - `data/app/exhibits/`: seed exhibits (optional)
 - `data/working/`: uploads/temp/logs (ignored by VCS)
@@ -90,9 +90,10 @@ mountApp({ rootSelector: '#app-root' });
 - Load SuperDoc CDN + bootstrap; load React CDN + UI module
 - Verify default.docx loads; render a shared banner/modal placeholder
 
-4) Word add-in
-- Add `clients/addin/src/taskpane.html` and `manifest/manifest.xml` pointing to HTTPS server URLs
-- Confirm taskpane mounts SuperDoc and shared UI via the same modules
+4) Word add-in (Yeoman)
+- Use Yeoman to scaffold under `clients/addin-yo`; set dev server to 4000
+- Manifest points to `https://localhost:4000/*`; server allows CORS from 4000
+- Taskpane loads SuperDoc CSS/UMD from `https://localhost:4001/static/vendor/superdoc/*` and imports `/static/superdoc-init.js`
 
 5) File flows
 - Validate upload new default, revert to canonical, exhibits upload/list
