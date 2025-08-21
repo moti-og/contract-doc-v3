@@ -13,7 +13,8 @@
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
       height: 100vh;
     }
-    #layout { display: flex; height: 100vh; }
+    #banner { height: 40px; display: flex; align-items: center; padding: 0 12px; background: #fdf2f2; color: #b91c1c; border-bottom: 1px solid #f3c2c2; font-weight: 600; }
+    #layout { display: flex; height: calc(100vh - 40px); }
     #editor-col { display: flex; flex-direction: column; flex: 1; min-width: 0; }
     #superdoc-toolbar { border-bottom: 1px solid #ddd; }
     #superdoc { flex: 1; min-height: 0; }
@@ -63,6 +64,7 @@
   </script>
 </head>
 <body>
+  <div id="banner">Red Line</div>
   <div id="layout">
     <div id="editor-col">
       <div id="superdoc-toolbar"></div>
