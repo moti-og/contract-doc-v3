@@ -46,6 +46,27 @@ function postJson(path, body) {
   });
 }
 
+async function fetchMatrixFor(userId) {
+  const r = await fetchJson(`/api/v1/state-matrix?userRole=editor&platform=web&userId=${encodeURIComponent(userId || 'tester')}`);
+  if (r.status !== 200) throw new Error('matrix');
+  return r.json?.config?.checkoutStatus || r.json.checkoutStatus || r.json.config.checkoutStatus;
+}
+
+async function ensureNotCheckedOut() {
+  const status = await fetchMatrixFor('ensure');
+  if (status.isCheckedOut && status.checkedOutUserId) {
+    await postJson('/api/v1/checkin', { userId: status.checkedOutUserId });
+  }
+}
+
+async function ensureUnfinalized() {
+  try { await postJson('/api/v1/unfinalize', { userId: 'ensure' }); } catch {}
+}
+
+async function ensureFinalized() {
+  try { await postJson('/api/v1/finalize', { userId: 'ensure' }); } catch {}
+}
+
 describe('API', () => {
   beforeAll(async () => {
     await detectBase();
@@ -63,6 +84,7 @@ describe('API', () => {
   });
 
   test('checkout/checkin', async () => {
+    await ensureNotCheckedOut();
     const u = 'jest-user';
     const c1 = await postJson('/api/v1/checkout', { userId: u });
     expect(c1.status).toBe(200);
@@ -72,11 +94,49 @@ describe('API', () => {
   });
 
   test('finalize/unfinalize', async () => {
+    await ensureNotCheckedOut();
     const u = 'jest-user';
     const f1 = await postJson('/api/v1/finalize', { userId: u });
     expect(f1.status).toBe(200);
     const f2 = await postJson('/api/v1/unfinalize', { userId: u });
     expect(f2.status).toBe(200);
+  });
+
+  test('checkin without checkout returns 409', async () => {
+    await ensureNotCheckedOut();
+    const r = await postJson('/api/v1/checkin', { userId: 'nobody' });
+    expect(r.status).toBe(409);
+  });
+
+  test('checkout by A then checkin by B returns 409', async () => {
+    await ensureNotCheckedOut();
+    const a = 'jest-a', b = 'jest-b';
+    const c = await postJson('/api/v1/checkout', { userId: a });
+    expect(c.status).toBe(200);
+    const r = await postJson('/api/v1/checkin', { userId: b });
+    expect(r.status).toBe(409);
+    await postJson('/api/v1/checkin', { userId: a }); // cleanup
+  });
+
+  test('cannot finalize when checked out by another user', async () => {
+    await ensureUnfinalized();
+    await ensureNotCheckedOut();
+    const a = 'jest-a', b = 'jest-b';
+    await postJson('/api/v1/checkout', { userId: a });
+    const r = await postJson('/api/v1/finalize', { userId: b });
+    expect(r.status).toBe(409);
+    await postJson('/api/v1/checkin', { userId: a }); // cleanup
+  });
+
+  test('cannot unfinalize when checked out by another user', async () => {
+    await ensureFinalized();
+    await ensureNotCheckedOut();
+    const a = 'jest-a', b = 'jest-b';
+    await postJson('/api/v1/checkout', { userId: a });
+    const r = await postJson('/api/v1/unfinalize', { userId: b });
+    expect(r.status).toBe(409);
+    await postJson('/api/v1/checkin', { userId: a }); // cleanup
+    await ensureUnfinalized();
   });
 });
 
