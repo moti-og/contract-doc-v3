@@ -41,7 +41,10 @@ const sseClients = new Set();
 function broadcast(event) {
   const payload = `data: ${JSON.stringify({ documentId: DOCUMENT_ID, ...event, ts: Date.now() })}\n\n`;
   for (const res of sseClients) {
-    try { res.write(payload); } catch { /* ignore */ }
+    try {
+      res.write(payload);
+      res.flush?.();
+    } catch { /* ignore */ }
   }
 }
 
@@ -179,16 +182,24 @@ app.get('/api/v1/approvals/state', (req, res) => {
 });
 
 app.post('/api/v1/finalize', (req, res) => {
+  const userId = req.body?.userId || 'user1';
+  if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
+    return res.status(409).json({ error: `Checked out by ${serverState.checkedOutBy}` });
+  }
   serverState.isFinal = true;
   serverState.lastUpdated = new Date().toISOString();
-  broadcast({ type: 'finalize', value: true });
+  broadcast({ type: 'finalize', value: true, userId });
   res.json({ ok: true });
 });
 
 app.post('/api/v1/unfinalize', (req, res) => {
+  const userId = req.body?.userId || 'user1';
+  if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
+    return res.status(409).json({ error: `Checked out by ${serverState.checkedOutBy}` });
+  }
   serverState.isFinal = false;
   serverState.lastUpdated = new Date().toISOString();
-  broadcast({ type: 'finalize', value: false });
+  broadcast({ type: 'finalize', value: false, userId });
   res.json({ ok: true });
 });
 
@@ -213,6 +224,23 @@ app.post('/api/v1/document/revert', (req, res) => {
   serverState.lastUpdated = new Date().toISOString();
   broadcast({ type: 'documentRevert' });
   res.json({ ok: true });
+});
+
+// Snapshot: copy working/canonical default to a timestamped backup
+app.post('/api/v1/document/snapshot', (req, res) => {
+  const src = resolveDefaultDocPath();
+  if (!fs.existsSync(src)) return res.status(404).json({ error: 'default.docx not found' });
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const snapDir = path.join(dataWorkingDir, 'snapshots');
+  if (!fs.existsSync(snapDir)) fs.mkdirSync(snapDir, { recursive: true });
+  const dest = path.join(snapDir, `default-${ts}.docx`);
+  try {
+    fs.copyFileSync(src, dest);
+    broadcast({ type: 'snapshot', name: path.basename(dest) });
+    res.json({ ok: true, path: dest });
+  } catch (e) {
+    res.status(500).json({ error: 'Snapshot failed' });
+  }
 });
 
 // Checkout/Checkin endpoints
@@ -267,7 +295,23 @@ app.get('/api/v1/events', (req, res) => {
   res.flushHeaders?.();
   sseClients.add(res);
   res.write('retry: 3000\n\n');
-  req.on('close', () => sseClients.delete(res));
+  res.flush?.();
+  // Send an initial hello event so clients see activity immediately after connect
+  try {
+    const initial = {
+      documentId: DOCUMENT_ID,
+      type: 'hello',
+      state: { isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy },
+      ts: Date.now(),
+    };
+    res.write(`data: ${JSON.stringify(initial)}\n\n`);
+    res.flush?.();
+  } catch {}
+  // Keep-alive comments to prevent proxy timeouts
+  const keepalive = setInterval(() => {
+    try { res.write(`: keepalive ${Date.now()}\n\n`); res.flush?.(); } catch {}
+  }, 15000);
+  req.on('close', () => { sseClients.delete(res); clearInterval(keepalive); });
 });
 
 // HTTPS preferred; fallback to HTTP if certs missing
