@@ -3,3 +3,10 @@ clients/addin/dist/
 clients/web/dist/
 *.log
 
+node_modules/
+server/node_modules/
+data/working/
+clients/addin/dist/
+clients/web/dist/
+*.log
+
