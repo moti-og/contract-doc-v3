@@ -36,6 +36,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let connectionBadge;
   let lastEventBadge;
   let reconnectAttempt = 0;
+  let userSelectEl;
 
   const log = (m) => {
     if (!statusBox) return;
@@ -110,6 +111,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     connectionBadge = el('span', { id: 'conn-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['disconnected']);
     lastEventBadge = el('span', { id: 'last-event-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['last: —']);
     const userSel = el('select', { onchange: async (e) => { currentUser = e.target.value; log(`user set to ${currentUser}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } });
+    userSelectEl = userSel;
     const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, [
       el('option', { value: 'editor', selected: 'selected' }, ['editor']),
       el('option', { value: 'vendor' }, ['vendor']),
@@ -314,9 +316,18 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       const r = await fetch('/api/v1/users');
       const j = await r.json();
       const items = Array.isArray(j.items) ? j.items : ['user1','user2','user3'];
-      userSel.innerHTML = '';
-      for (const u of items) {
-        userSel.append(el('option', { value: u, selected: u === currentUser ? 'selected' : null }, [u]));
+      if (userSelectEl) {
+        userSelectEl.innerHTML = '';
+        let found = false;
+        for (const u of items) {
+          const selected = u === currentUser ? 'selected' : null;
+          if (selected) found = true;
+          userSelectEl.append(el('option', { value: u, selected }, [u]));
+        }
+        if (!found && items.length) {
+          currentUser = items[0];
+          userSelectEl.value = currentUser;
+        }
       }
     } catch {}
     updateUI();
