@@ -29,6 +29,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let currentRole = 'editor';
   let currentDocumentId = null;
   let connectionBadge;
+  let lastEventBadge;
   let reconnectAttempt = 0;
 
   const log = (m) => {
@@ -55,8 +56,9 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     const header = el('div', { style: { padding: '8px 0', fontWeight: '600', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
       `Shared UI — Platform: ${detectPlatform()}`,
     ]);
-    // Connection badge
+    // Connection + last event badges
     connectionBadge = el('span', { id: 'conn-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['disconnected']);
+    lastEventBadge = el('span', { id: 'last-event-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['last: —']);
     const userSel = el('select', { onchange: async (e) => { currentUser = e.target.value; log(`user set to ${currentUser}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, [
       el('option', { value: 'user1', selected: 'selected' }, ['user1']),
       el('option', { value: 'user2' }, ['user2']),
@@ -67,7 +69,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       el('option', { value: 'vendor' }, ['vendor']),
       el('option', { value: 'viewer' }, ['viewer']),
     ]);
-    header.append(connectionBadge, el('span', {}, ['User: ']), userSel, el('span', {}, ['Role: ']), roleSel);
+    header.append(connectionBadge, lastEventBadge, el('span', {}, ['User: ']), userSel, el('span', {}, ['Role: ']), roleSel);
     buttonsRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' } });
     statusBox = el('div', { style: { fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', maxHeight: '160px', overflow: 'auto', marginTop: '8px' } });
     root.append(header, buttonsRow, statusBox);
@@ -82,6 +84,12 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     connectionBadge.style.borderColor = isConnected ? '#a6f3b5' : '#f3c2c2';
   }
 
+  function setLastEvent(ts) {
+    if (!lastEventBadge) return;
+    const when = ts ? new Date(ts).toLocaleTimeString() : '—';
+    lastEventBadge.textContent = `last: ${when}`;
+  }
+
   function connectSSE() {
     try {
       if (sse) { try { sse.close(); } catch {} }
@@ -94,6 +102,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       sse.onmessage = (ev) => {
         try {
           const payload = JSON.parse(ev.data);
+          setLastEvent(payload?.ts || Date.now());
           if (payload?.documentId && currentDocumentId && payload.documentId !== currentDocumentId) {
             log(`SSE ignored (doc mismatch: ${payload.documentId} != ${currentDocumentId})`);
             return;
