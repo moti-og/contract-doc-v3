@@ -12,12 +12,13 @@
       margin: 0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
       height: 100vh;
-      display: flex;
-      flex-direction: column;
     }
+    #layout { display: flex; height: 100vh; }
+    #editor-col { display: flex; flex-direction: column; flex: 1; min-width: 0; }
     #superdoc-toolbar { border-bottom: 1px solid #ddd; }
-    #superdoc { flex: 1; }
-    #app-root { border-top: 1px solid #eee; }
+    #superdoc { flex: 1; min-height: 0; }
+    #pane { width: 360px; max-width: 420px; border-left: 1px solid #eee; display: flex; flex-direction: column; }
+    #app-root { padding: 8px 12px; overflow: auto; }
   </style>
   <!-- Load local SuperDoc UMD before module init -->
   <script src="/static/vendor/superdoc/superdoc.umd.min.js"></script>
@@ -62,9 +63,15 @@
   </script>
 </head>
 <body>
-  <div id="superdoc-toolbar"></div>
-  <div id="superdoc"></div>
-  <div id="app-root" style="padding: 8px 12px;"></div>
+  <div id="layout">
+    <div id="editor-col">
+      <div id="superdoc-toolbar"></div>
+      <div id="superdoc"></div>
+    </div>
+    <aside id="pane">
+      <div id="app-root"></div>
+    </aside>
+  </div>
 </body>
 </html>
 
