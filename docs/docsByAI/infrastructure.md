@@ -1,5 +1,29 @@
 ﻿# Infrastructure and Stack Plan
 
+## Local server management and smoke
+
+Ports:
+- 4000: Dev server (Webpack, HTTPS)
+- 4001: Backend API (Express, HTTPS)
+- 4002: Collab (Hocuspocus)
+
+Helpers (double-click from Windows Explorer):
+- tools/scripts/start-servers.bat – start 4000/4001/4002
+- tools/scripts/status-servers.bat – display listeners
+- tools/scripts/stop-servers.bat – stop 4000/4001/4002
+
+PowerShell helper (alternative):
+- tools/scripts/servers.ps1 with -Action start|stop|restart|status
+  - Example:
+    - .\tools\scripts\servers.ps1 -Action restart
+    - .\tools\scripts\servers.ps1 -Action status
+
+Smoke test:
+- tools/scripts/smoke.ps1
+  - Backend direct: `pwsh tools/scripts/smoke.ps1`
+  - Via dev proxy: `pwsh tools/scripts/smoke.ps1 -Base https://localhost:4000`
+  - Verifies health, initial SSE hello, and a client event.
+
 ## Goals
 - Maximize the server: move logic, permissions, and state computation to the backend.
 - Identical client data pipelines: both Word addin and Web consume the same endpoints and JSON contracts.
