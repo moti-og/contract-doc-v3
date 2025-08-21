@@ -1,0 +1,15 @@
+{
+  "name": "collab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hocuspocus collab server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^2.13.0"
+  }
+}
+
+

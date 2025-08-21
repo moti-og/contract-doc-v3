@@ -1,7 +1,7 @@
 // Minimal Hocuspocus server on 4100 (CommonJS)
 const { Server } = require('@hocuspocus/server');
 
-const port = Number(process.env.SUPERDOC_PORT || 4100);
+const port = Number(process.env.SUPERDOC_PORT || 4002);
 
 const server = Server.configure({
   port,

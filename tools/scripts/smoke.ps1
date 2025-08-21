@@ -1,3 +1,32 @@
+param(
+  [string]$Base = "https://localhost:4001"
+)
+
+Write-Host "Smoke: $Base" -ForegroundColor Cyan
+
+# Health
+try {
+  $health = curl.exe -k -s "$Base/api/v1/health"
+  Write-Host "Health: $health"
+} catch {}
+
+# SSE capture (3s)
+try {
+  $diagDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'diagnostics'
+  if (-not (Test-Path $diagDir)) { New-Item -ItemType Directory -Path $diagDir | Out-Null }
+  $tmpPath = Join-Path $diagDir ('sse-' + ((Get-Date).ToString('yyyyMMdd-HHmmss')) + '.txt')
+  curl.exe -k "$Base/api/v1/events" --max-time 3 -o $tmpPath | Out-Null
+  Get-Content $tmpPath | Select-Object -First 5 | ForEach-Object { Write-Host $_ }
+} catch {}
+
+# Send client test event
+try {
+  $body = @{ type = 'smoke'; payload = @{ ok = $true }; userId = 'smoke'; role = 'editor'; platform = 'web' } | ConvertTo-Json -Depth 5
+  [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
+  Invoke-RestMethod -Method Post -Uri "$Base/api/v1/events/client" -Body $body -ContentType 'application/json' | Out-Null
+  Write-Host "Sent client event"
+} catch {}
+
 # Simple smoke test for unified server
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/smoke.ps1 -Origin http://localhost:4001

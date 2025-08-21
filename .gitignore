@@ -1,4 +1,7 @@
-﻿data/working/
+﻿# Diagnostics (keep repo root clean)
+tools/diagnostics/**
+sse*.txt
+data/working/
 clients/addin/dist/
 clients/web/dist/
 *.log
