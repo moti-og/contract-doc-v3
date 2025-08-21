@@ -27,7 +27,7 @@ function Start-Dev() {
 
 function Start-Collab() {
   $root = Split-Path -Parent $PSCommandPath | Split-Path -Parent | Split-Path -Parent
-  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","cd '$root'; node collab/server.js" -WindowStyle Minimized -PassThru
+  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","cd '$root\\collab'; if (Test-Path package.json) { npm install --no-audit --no-fund; npm start } else { cd '$root'; node collab/server.js }" -WindowStyle Minimized -PassThru
 }
 
 function Show-Status() {
