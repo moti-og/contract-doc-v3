@@ -53,12 +53,12 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     const header = el('div', { style: { padding: '8px 0', fontWeight: '600', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
       `Shared UI — Platform: ${detectPlatform()}`,
     ]);
-    const userSel = el('select', { onchange: (e) => { currentUser = e.target.value; log(`user set to ${currentUser}`); updateUI(); } }, [
+    const userSel = el('select', { onchange: async (e) => { currentUser = e.target.value; log(`user set to ${currentUser}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, [
       el('option', { value: 'user1', selected: 'selected' }, ['user1']),
       el('option', { value: 'user2' }, ['user2']),
       el('option', { value: 'user3' }, ['user3']),
     ]);
-    const roleSel = el('select', { onchange: (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); updateUI(); } }, [
+    const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, [
       el('option', { value: 'editor', selected: 'selected' }, ['editor']),
       el('option', { value: 'vendor' }, ['vendor']),
       el('option', { value: 'viewer' }, ['viewer']),

@@ -241,6 +241,13 @@ app.post('/api/v1/checkin', (req, res) => {
   res.json({ ok: true });
 });
 
+// Client-originated events (prototype): accept and rebroadcast for parity
+app.post('/api/v1/events/client', (req, res) => {
+  const { type = 'clientEvent', payload = {}, userId = 'user1', role = 'editor', platform = 'web' } = req.body || {};
+  broadcast({ type, payload, userId, role, platform });
+  res.json({ ok: true });
+});
+
 app.get('/api/v1/exhibits', (req, res) => {
   res.json({ items: listExhibits() });
 });
