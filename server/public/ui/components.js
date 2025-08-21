@@ -45,7 +45,15 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   };
 
   function isWord() {
-    return detectPlatform() === 'word' && typeof Office !== 'undefined' && typeof Word !== 'undefined';
+    try {
+      if (typeof Office === 'undefined') return false;
+      const host = Office?.context?.host || Office?.HostType?.Word;
+      if (typeof host === 'string') return host.toLowerCase() === 'word';
+      // Fallback: if Office exists in taskpane, assume Word host
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   function arrayBufferToBase64(buffer) {
