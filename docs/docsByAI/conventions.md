@@ -4,7 +4,7 @@
   - `server/`
   - `server/src/`
   - `clients/`
-  - `clients/addin/`
+  - `clients/addin-yo/`
   - `clients/web/`
   - `clients/shared/`
   - `data/`

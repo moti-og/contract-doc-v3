@@ -1,6 +1,6 @@
 # Product Brief: Contract Document System
 
-References: [Prototype repo](https://github.com/moti-og/Contract-Document-System-V2), [state matrix doc](https://github.com/moti-og/Contract-Document-System-V2/blob/main/DocsByAI/state-matrix/state-matrix-plain-english.md), [lessons learned docs](https://github.com/moti-og/Contract-Document-System-V2/blob/main/DocsByAI/lessons-learned-summary.md)
+References: [New Prototype repo [Prototype repo](https://github.com/moti-og/Contract-Document-System-V2), [state matrix doc](https://github.com/moti-og/Contract-Document-System-V2/blob/main/DocsByAI/state-matrix/state-matrix-plain-english.md), [lessons learned docs](https://github.com/moti-og/Contract-Document-System-V2/blob/main/DocsByAI/lessons-learned-summary.md)
 
 ## 1. Purpose & Vision
 
@@ -92,8 +92,8 @@ References: [Prototype repo](https://github.com/moti-og/Contract-Document-System
 - No feature flags — only core demo flows are implemented
 - Storage model: one canonical default document; users can upload/replace it or revert to the original; separate `exhibits/` folder for packet assembly
 - React loaded via CDN; one shared UI module served by our server and imported by both clients (no bundlers)
-- HTTPS dev server at `https://localhost:3001` (trusted local cert); web and add‑in share this origin
-- SuperDoc collaboration backend running locally via Docker at `https://localhost:4100`
+- HTTPS dev server at `https://localhost:4001` (trusted local cert); web and add‑in share this origin
+- SuperDoc collaboration backend running locally via Docker at `https://localhost:4002`
 
 ---
 

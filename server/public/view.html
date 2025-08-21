@@ -13,8 +13,12 @@
   </style>
   <!-- Load local SuperDoc UMD before module init -->
   <script src="/static/vendor/superdoc/superdoc.umd.min.js"></script>
+  <!-- React UMD for shared UI layer -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script type="module">
     import { mountSuperdoc } from '/static/superdoc-init.js';
+    import { mountApp } from '/static/ui/components.js';
     window.addEventListener('load', async () => {
       try {
         console.log('SuperDoc globals', {
@@ -28,7 +32,7 @@
         // Probe collab backend (non-blocking for now)
         try {
           const health = await fetch('/api/v1/health').then(r => r.json()).catch(() => null);
-          const httpUrl = health?.superdoc || 'http://localhost:4100';
+          const httpUrl = health?.superdoc || 'http://localhost:4002';
           const wsUrl = httpUrl.replace(/^http(s)?:\/\//, (m, s) => s ? 'wss://' : 'ws://');
           const sock = new WebSocket(wsUrl);
           sock.onopen = () => console.log('Collab WS connected', wsUrl);
@@ -39,6 +43,8 @@
         }
 
         mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: '/documents/default.docx', documentMode: 'editing', pagination: true, rulers: true });
+        // Mount shared UI in footer area
+        mountApp({ rootSelector: '#app-root' });
       } catch (e) {
         const el = document.getElementById('superdoc');
         el.innerHTML = `<div style=\"padding:16px\">Failed to initialize: ${e?.message || e}.<br/>Open <a href=\"/debug\">/debug</a> to verify current document and uploads.</div>`;
@@ -50,6 +56,7 @@
 <body>
   <div id="superdoc-toolbar"></div>
   <div id="superdoc" style="height: calc(100vh - 48px);"></div>
+  <div id="app-root" style="padding: 8px 12px; border-top: 1px solid #eee;"></div>
 </body>
 </html>
 

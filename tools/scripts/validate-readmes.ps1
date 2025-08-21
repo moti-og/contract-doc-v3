@@ -1,5 +1,5 @@
 ﻿param()
-$required = @('server','server/src','clients','clients/addin','clients/web','clients/shared','data','data/app')
+$required = @('server','server/src','clients','clients/addin-yo','clients/web','clients/shared','data','data/app')
 $missing = @()
 foreach($p in $required){ if (!(Test-Path (Join-Path $p 'README.md'))) { $missing += $p } }
 if ($missing.Count -gt 0) {

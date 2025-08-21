@@ -14,8 +14,9 @@
 - HTTPS dev cert: Word’s Edge WebView behaves most reliably over HTTPS; we serve both web and add‑in from the same origin.
 
 ## Dev ports and origins
-- Unified app server (web + add‑in + API + static): `https://localhost:3001`
-- SuperDoc backend (container): `https://localhost:4100`
+- Unified app server (web + API + static): `https://localhost:4001`
+- Word add‑in (Yeoman dev server): `https://localhost:4000`
+- SuperDoc backend (container): `https://localhost:4002`
 - Same-origin hosting removes CORS/CSP friction and makes taskpane activation more reliable.
 
 ## Install notes (Windows)
@@ -27,18 +28,20 @@
 - Git (optional): `winget install -e --id Git.Git`
 
 ## SuperDoc backend (local)
-- Run the SuperDoc collaboration backend in a container on `https://localhost:4100`.
+- Run the SuperDoc collaboration backend in a container on `https://localhost:4002`.
 - Exact image name and environment variables come from the SuperDoc docs: https://docs.superdoc.dev/
-- Ensure CORS allows `https://localhost:3001` and that TLS is enabled for local testing.
+- Ensure CORS allows `https://localhost:4001` and that TLS is enabled for local testing.
 
-## HTTPS dev certificate (server)
-- We use a trusted local certificate for `https://localhost:3001`.
+## HTTPS dev certificates
+- We use a trusted local certificate for `https://localhost:4001`.
+- Yeoman’s dev server provides its own HTTPS on `https://localhost:4000` via office-addin-dev-certs.
 - A PowerShell script will generate and trust a self‑signed certificate (to be added in `server/scripts/`).
 
 ## Next steps
 - Start Docker Desktop
-- Run the SuperDoc backend container on port 4100 per vendor instructions
-- Start the Node server on port 3001 (HTTPS) to serve both clients and shared modules
+- Run the SuperDoc backend container exposing host port 4002 (container listens on 4100)
+- Start the Node server on port 4001 (HTTPS) to serve APIs and static modules
+- Start the Yeoman add‑in dev server on 4000: `cd clients/addin-yo && npm start`
 - Open the web client and the Word add‑in (manifest points to the same origin)
 
 Reference: SuperDoc Quick Start — https://docs.superdoc.dev/

@@ -12,8 +12,8 @@ These notes document how we use Docker locally for the collaboration backend (Ho
 - Compose: `ops/docker/docker-compose.yml`
 - Collab build context: `collab/`
 - Service name: `superdoc`
-- Port mapping: `4100:4100` (HTTP and WebSocket at `http://localhost:4100` / `ws://localhost:4100`)
-- App server default `SUPERDOC_BASE_URL`: `http://localhost:4100`
+- Port mapping: `4002:4100` (HTTP and WebSocket at `http://localhost:4002` / `ws://localhost:4002`)
+- App server default `SUPERDOC_BASE_URL`: `http://localhost:4002`
 
 ### Start sequence (after reboot)
 ```powershell
@@ -54,7 +54,7 @@ docker compose -f .\\ops\\docker\\docker-compose.yml down
 - Compose “version is obsolete” warning:
   - Remove the top-level `version:` key; Compose v2 ignores it by design.
 - Port already in use:
-  - Stop anything on 4100 or change the host port in Compose.
+  - Stop anything on 4002 or change the host port in Compose.
 - Script path issues:
   - Always run from the repo root so `tools/scripts/superdoc.ps1` can locate the Compose file.
 

@@ -9,7 +9,7 @@
 - Identical contracts and rendering for Word add-in and Web; diverge only if required by platform
 
 ## Architecture baseline
-- Server (Node, port 3001)
+- Server (Node, port 4001)
   - HTTPS with a trusted local dev certificate; host web and add-in from the same origin
   - Serves static assets (including a shared SuperDoc bootstrap module and a shared React UI module)
   - API: state matrix, document metadata, finalize/unfinalize, approvals (stub), uploads, exhibits
@@ -20,14 +20,14 @@
   - Word add-in: taskpane HTML that does the same, hosted from the same server
   - Shared: zero duplicated init code; load one bootstrap module and one UI module from the server in both clients
 - SuperDoc backend
-  - Run locally in Docker at `https://localhost:4100` with CORS allowing `https://localhost:3001`
+  - Run locally in Docker at `https://localhost:4002` with CORS allowing `https://localhost:4001`
 
 ## File/folder map
 - `server/public/superdoc-init.js`: exports `mountSuperdoc(options)`; calls `new SuperDoc(...)`
 - `server/public/ui/components.js`: exports React components + `mountApp(...)`
 - `clients/web/public/index.html`: contains `#superdoc-toolbar`, `#superdoc`, and `#app-root`; imports bootstrap and UI module
-- `clients/addin/src/taskpane.html`: same divs; imports the same modules
-- `clients/addin/manifest/manifest.xml`: taskpane manifest (served URLs on port 3001)
+- `clients/addin-yo/src/taskpane/taskpane.html`: Yeoman taskpane (served by dev server on 4000)
+- `clients/addin-yo/manifest.xml`: taskpane manifest (served URLs on port 4000)
 - `data/app/documents/default.docx`: canonical default document
 - `data/app/exhibits/`: seed exhibits (optional)
 - `data/working/`: uploads/temp/logs (ignored by VCS)
@@ -51,7 +51,7 @@
 Include in each client HTML:
 - `<link href="https://cdn.jsdelivr.net/npm/@harbour-enterprises/superdoc/dist/style.css" rel="stylesheet">`
 - `<script src="https://cdn.jsdelivr.net/npm/@harbour-enterprises/superdoc/dist/superdoc.es.js" type="module"></script>`
-Both clients import `https://localhost:3001/static/superdoc-init.js` and call:
+Both clients import `https://localhost:4001/static/superdoc-init.js` and call:
 ```
 mountSuperdoc({
   selector: '#superdoc',
@@ -69,7 +69,7 @@ Include in each client HTML:
 - `<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>`
 Then import and mount our shared module:
 ```
-import { mountApp } from 'https://localhost:3001/static/ui/components.js';
+import { mountApp } from 'https://localhost:4001/static/ui/components.js';
 mountApp({ rootSelector: '#app-root' });
 ```
 
@@ -90,9 +90,10 @@ mountApp({ rootSelector: '#app-root' });
 - Load SuperDoc CDN + bootstrap; load React CDN + UI module
 - Verify default.docx loads; render a shared banner/modal placeholder
 
-4) Word add-in
-- Add `clients/addin/src/taskpane.html` and `manifest/manifest.xml` pointing to HTTPS server URLs
-- Confirm taskpane mounts SuperDoc and shared UI via the same modules
+4) Word add-in (Yeoman)
+- Use Yeoman to scaffold under `clients/addin-yo`; set dev server to 4000
+- Manifest points to `https://localhost:4000/*`; server allows CORS from 4000
+- Taskpane loads SuperDoc CSS/UMD from `https://localhost:4001/static/vendor/superdoc/*` and imports `/static/superdoc-init.js`
 
 5) File flows
 - Validate upload new default, revert to canonical, exhibits upload/list
