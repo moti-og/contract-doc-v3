@@ -1,5 +1,6 @@
 ﻿# Diagnostics (keep repo root clean)
-tools/diagnostics/**
+tools/diagnostics/*
+!tools/diagnostics/.gitkeep
 sse*.txt
 data/working/
 clients/addin/dist/
