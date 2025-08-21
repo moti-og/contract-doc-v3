@@ -36,6 +36,23 @@ const serverState = {
   lastUpdated: new Date().toISOString(),
 };
 
+// Load persisted state if available
+const stateFilePath = path.join(dataAppDir, 'state.json');
+try {
+  if (fs.existsSync(stateFilePath)) {
+    const saved = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
+    if (typeof saved.isFinal === 'boolean') serverState.isFinal = saved.isFinal;
+    if (saved.checkedOutBy === null || typeof saved.checkedOutBy === 'string') serverState.checkedOutBy = saved.checkedOutBy;
+    if (typeof saved.lastUpdated === 'string') serverState.lastUpdated = saved.lastUpdated;
+  }
+} catch {}
+
+function persistState() {
+  try {
+    fs.writeFileSync(stateFilePath, JSON.stringify({ isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated }, null, 2));
+  } catch {}
+}
+
 // SSE clients
 const sseClients = new Set();
 function broadcast(event) {
@@ -188,6 +205,7 @@ app.post('/api/v1/finalize', (req, res) => {
   }
   serverState.isFinal = true;
   serverState.lastUpdated = new Date().toISOString();
+  persistState();
   broadcast({ type: 'finalize', value: true, userId });
   res.json({ ok: true });
 });
@@ -199,6 +217,7 @@ app.post('/api/v1/unfinalize', (req, res) => {
   }
   serverState.isFinal = false;
   serverState.lastUpdated = new Date().toISOString();
+  persistState();
   broadcast({ type: 'finalize', value: false, userId });
   res.json({ ok: true });
 });
@@ -211,6 +230,7 @@ app.post('/api/v1/document/upload', upload.single('file'), (req, res) => {
   try {
     fs.copyFileSync(uploaded, dest);
     serverState.lastUpdated = new Date().toISOString();
+    persistState();
     broadcast({ type: 'documentUpload', name: 'default.docx' });
     res.json({ ok: true });
   } catch (e) {
@@ -222,6 +242,7 @@ app.post('/api/v1/document/revert', (req, res) => {
   const working = path.join(workingDocumentsDir, 'default.docx');
   if (fs.existsSync(working)) fs.rmSync(working);
   serverState.lastUpdated = new Date().toISOString();
+  persistState();
   broadcast({ type: 'documentRevert' });
   res.json({ ok: true });
 });
@@ -251,6 +272,7 @@ app.post('/api/v1/checkout', (req, res) => {
   }
   serverState.checkedOutBy = userId;
   serverState.lastUpdated = new Date().toISOString();
+  persistState();
   broadcast({ type: 'checkout', userId });
   res.json({ ok: true, checkedOutBy: userId });
 });
@@ -265,6 +287,7 @@ app.post('/api/v1/checkin', (req, res) => {
   }
   serverState.checkedOutBy = null;
   serverState.lastUpdated = new Date().toISOString();
+  persistState();
   broadcast({ type: 'checkin', userId });
   res.json({ ok: true });
 });

@@ -28,6 +28,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let currentUser = 'user1';
   let currentRole = 'editor';
   let currentDocumentId = null;
+  let connectionBadge;
+  let reconnectAttempt = 0;
 
   const log = (m) => {
     if (!statusBox) return;
@@ -53,6 +55,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     const header = el('div', { style: { padding: '8px 0', fontWeight: '600', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
       `Shared UI — Platform: ${detectPlatform()}`,
     ]);
+    // Connection badge
+    connectionBadge = el('span', { id: 'conn-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['disconnected']);
     const userSel = el('select', { onchange: async (e) => { currentUser = e.target.value; log(`user set to ${currentUser}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, [
       el('option', { value: 'user1', selected: 'selected' }, ['user1']),
       el('option', { value: 'user2' }, ['user2']),
@@ -63,17 +67,31 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       el('option', { value: 'vendor' }, ['vendor']),
       el('option', { value: 'viewer' }, ['viewer']),
     ]);
-    header.append(el('span', {}, ['User: ']), userSel, el('span', {}, ['Role: ']), roleSel);
+    header.append(connectionBadge, el('span', {}, ['User: ']), userSel, el('span', {}, ['Role: ']), roleSel);
     buttonsRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' } });
     statusBox = el('div', { style: { fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', maxHeight: '160px', overflow: 'auto', marginTop: '8px' } });
     root.append(header, buttonsRow, statusBox);
     initialized = true;
+    connectSSE();
+  }
 
-    // Connect SSE once
+  function setConnected(isConnected) {
+    if (!connectionBadge) return;
+    connectionBadge.textContent = isConnected ? 'connected' : 'disconnected';
+    connectionBadge.style.background = isConnected ? '#e6ffed' : '#fff5f5';
+    connectionBadge.style.borderColor = isConnected ? '#a6f3b5' : '#f3c2c2';
+  }
+
+  function connectSSE() {
     try {
+      if (sse) { try { sse.close(); } catch {} }
       sse = new EventSource('/api/v1/events');
+      sse.onopen = () => {
+        setConnected(true);
+        reconnectAttempt = 0;
+        log('SSE open');
+      };
       sse.onmessage = (ev) => {
-        // Ignore events for other documents
         try {
           const payload = JSON.parse(ev.data);
           if (payload?.documentId && currentDocumentId && payload.documentId !== currentDocumentId) {
@@ -88,7 +106,20 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
           log(`SSE parse ERR`);
         }
       };
-    } catch {}
+      sse.onerror = () => {
+        setConnected(false);
+        try { sse.close(); } catch {}
+        const base = 1000;
+        const delay = Math.min(30000, base * Math.pow(2, reconnectAttempt)) + Math.floor(Math.random() * 250);
+        reconnectAttempt = Math.min(reconnectAttempt + 1, 6);
+        log(`SSE reconnecting in ${delay}ms`);
+        setTimeout(connectSSE, delay);
+      };
+    } catch {
+      setConnected(false);
+      const delay = 2000 + Math.floor(Math.random() * 500);
+      setTimeout(connectSSE, delay);
+    }
   }
 
   function setButtons(config) {

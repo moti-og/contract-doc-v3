@@ -110,7 +110,13 @@ module.exports = async (env, options) => {
           changeOrigin: true,
           secure: false,
           ws: true,
-          logLevel: 'warn',
+          logLevel: 'error',
+          onError(err, req, res) {
+            // Suppress frequent ECONNRESET noise for EventSource long-polls
+            if (err && (err.code === 'ECONNRESET' || err.message?.includes('ECONNRESET'))) return;
+          },
+          proxyTimeout: 0,
+          timeout: 0,
         },
       ],
     },
