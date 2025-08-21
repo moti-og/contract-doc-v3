@@ -44,6 +44,40 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     statusBox.scrollTop = statusBox.scrollHeight;
   };
 
+  function isWord() {
+    return detectPlatform() === 'word' && typeof Office !== 'undefined' && typeof Word !== 'undefined';
+  }
+
+  function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  async function openWordDocumentFromBase64(base64) {
+    if (!isWord()) return;
+    await Word.run(async (context) => {
+      const doc = context.application.createDocument(base64);
+      doc.open();
+      await context.sync();
+    });
+  }
+
+  async function openWordDocumentFromUrl(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('download');
+      const buf = await res.arrayBuffer();
+      const b64 = arrayBufferToBase64(buf);
+      await openWordDocumentFromBase64(b64);
+      log('Opened document in Word');
+    } catch (e) {
+      log(`open URL ERR ${e?.message || e}`);
+    }
+  }
+
   async function fetchMatrix() {
     const params = new URLSearchParams({ userRole: currentRole, platform: detectPlatform(), userId: currentUser });
     const res = await fetch(`/api/v1/state-matrix?${params.toString()}`);
@@ -86,6 +120,27 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
     actionsSection = section('Actions');
     buttonsRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
+    // Word-only document actions
+    if (isWord()) {
+      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => openWordDocumentFromUrl('/documents/default.docx') }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
+      const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
+      const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
+      filePick.onchange = async (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        try {
+          const buf = await f.arrayBuffer();
+          const b64 = arrayBufferToBase64(buf);
+          await openWordDocumentFromBase64(b64);
+          log(`Opened ${f.name}`);
+        } catch (err) {
+          log(`open file ERR ${err?.message || err}`);
+        } finally {
+          e.target.value = '';
+        }
+      };
+      buttonsRow.append(viewLatestBtn, openNewBtn, filePick);
+    }
     actionsSection.append(buttonsRow);
 
     exhibitsSection = section('Exhibits');
