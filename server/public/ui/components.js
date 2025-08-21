@@ -100,6 +100,16 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   async function updateUI() {
     try {
       const { config } = await fetchMatrix();
+      if (config?.documentId) {
+        // Surface the documentId in header for quick visibility
+        // Find or create a small pill element in the header
+        // Since we didn't retain a ref, prepend a badge if not present
+        const badgeId = 'doc-id-badge';
+        if (!document.getElementById(badgeId)) {
+          const badge = el('span', { id: badgeId, style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, [`doc: ${config.documentId}`]);
+          root.firstChild?.append(badge);
+        }
+      }
       setButtons(config);
     } catch (e) {
       log(`matrix ERR ${e?.message || e}`);

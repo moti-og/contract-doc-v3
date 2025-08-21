@@ -29,6 +29,7 @@ for (const dir of [dataWorkingDir, workingDocumentsDir, workingExhibitsDir]) {
 }
 
 // In-memory state (prototype)
+const DOCUMENT_ID = process.env.DOCUMENT_ID || 'default';
 const serverState = {
   isFinal: false,
   checkedOutBy: null,
@@ -38,7 +39,7 @@ const serverState = {
 // SSE clients
 const sseClients = new Set();
 function broadcast(event) {
-  const payload = `data: ${JSON.stringify({ ...event, ts: Date.now() })}\n\n`;
+  const payload = `data: ${JSON.stringify({ documentId: DOCUMENT_ID, ...event, ts: Date.now() })}\n\n`;
   for (const res of sseClients) {
     try { res.write(payload); } catch { /* ignore */ }
   }
@@ -141,7 +142,7 @@ app.get('/api/v1/current-document', (req, res) => {
   const p = resolveDefaultDocPath();
   const exists = fs.existsSync(p);
   res.json({
-    id: 'default',
+    id: DOCUMENT_ID,
     filename: 'default.docx',
     filePath: exists ? p : null,
     lastUpdated: serverState.lastUpdated,
@@ -154,6 +155,7 @@ app.get('/api/v1/state-matrix', (req, res) => {
   const isOwner = serverState.checkedOutBy === userId;
   const canWrite = !isCheckedOut || isOwner;
   const config = {
+    documentId: DOCUMENT_ID,
     buttons: {
       replaceDefaultBtn: true,
       compileBtn: true,
