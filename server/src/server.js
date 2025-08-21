@@ -9,7 +9,7 @@ const multer = require('multer');
 
 // Configuration
 const APP_PORT = Number(process.env.PORT || 3007);
-const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || 'https://localhost:4100';
+const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || 'http://localhost:4100';
 
 // Paths
 const rootDir = path.resolve(__dirname, '..', '..');

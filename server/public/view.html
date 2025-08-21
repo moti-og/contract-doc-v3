@@ -24,6 +24,20 @@
         });
         const res = await fetch('/documents/default.docx', { method: 'HEAD' });
         if (!res.ok) throw new Error('default.docx not found');
+
+        // Probe collab backend (non-blocking for now)
+        try {
+          const health = await fetch('/api/v1/health').then(r => r.json()).catch(() => null);
+          const httpUrl = health?.superdoc || 'http://localhost:4100';
+          const wsUrl = httpUrl.replace(/^http(s)?:\/\//, (m, s) => s ? 'wss://' : 'ws://');
+          const sock = new WebSocket(wsUrl);
+          sock.onopen = () => console.log('Collab WS connected', wsUrl);
+          sock.onerror = (e) => console.warn('Collab WS error', e);
+          sock.onclose = () => console.log('Collab WS closed');
+        } catch (e) {
+          console.warn('Collab probe failed', e);
+        }
+
         mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: '/documents/default.docx', documentMode: 'editing', pagination: true, rulers: true });
       } catch (e) {
         const el = document.getElementById('superdoc');
