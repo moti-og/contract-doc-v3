@@ -54,11 +54,11 @@
       text-align: center;
       text-shadow: 0 1px 1px rgba(0,0,0,0.25);
     }
-    #layout { display: flex; height: calc(100vh - var(--banner-h)); }
-    #editor-col { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-    #superdoc-toolbar { border-bottom: 1px solid #ddd; }
-    #superdoc { flex: 1; min-height: 0; }
-    #pane { width: 360px; max-width: 420px; border-left: 1px solid #eee; display: flex; flex-direction: column; padding-top: 20px; background: #fff; }
+    #layout { position: relative; display: flex; height: calc(100vh - var(--banner-h)); }
+    #editor-col { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    #superdoc-toolbar { position: relative; z-index: 1; border-bottom: 1px solid #ddd; }
+    #superdoc { position: relative; z-index: 1; flex: 1; min-height: 0; }
+    #pane { position: relative; z-index: 10; width: 360px; max-width: 420px; border-left: 1px solid #eee; display: flex; flex-direction: column; padding-top: 20px; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.08); }
     #app-root { padding: 8px 12px; overflow: auto; background: #fff; }
   </style>
   <!-- Load local SuperDoc UMD before module init -->
