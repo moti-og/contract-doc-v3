@@ -24,6 +24,11 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let initialized = false;
   let statusBox;
   let buttonsRow;
+  let container;
+  let actionsSection;
+  let exhibitsSection;
+  let exhibitsList;
+  let approvalsSection;
   let sse;
   let currentUser = 'user1';
   let currentRole = 'editor';
@@ -53,7 +58,10 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
   function ensureDom() {
     if (initialized) return;
-    const header = el('div', { style: { padding: '8px 0', fontWeight: '600', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
+    // Layout container (right-side pane)
+    container = el('div', { id: 'ui-container', style: { display: 'flex', flexDirection: 'column', gap: '12px' } });
+
+    const header = el('div', { style: { padding: '8px 0', fontWeight: '600', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #eee' } }, [
       `Shared UI — Platform: ${detectPlatform()}`,
     ]);
     // Connection + last event badges
@@ -70,9 +78,45 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       el('option', { value: 'viewer' }, ['viewer']),
     ]);
     header.append(connectionBadge, lastEventBadge, el('span', {}, ['User: ']), userSel, el('span', {}, ['Role: ']), roleSel);
-    buttonsRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' } });
-    statusBox = el('div', { style: { fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', maxHeight: '160px', overflow: 'auto', marginTop: '8px' } });
-    root.append(header, buttonsRow, statusBox);
+
+    // Section helper
+    const section = (title) => el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid #eee', borderRadius: '6px', padding: '8px 10px', background: '#fff' } }, [
+      el('div', { style: { fontWeight: '600' } }, [title]),
+    ]);
+
+    actionsSection = section('Actions');
+    buttonsRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
+    actionsSection.append(buttonsRow);
+
+    exhibitsSection = section('Exhibits');
+    const exHeader = el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } });
+    const refreshBtn = el('button', { class: 'ms-Button', onclick: () => updateExhibits() }, [el('span', { class: 'ms-Button-label' }, ['Refresh'])]);
+    const fileInput = el('input', { type: 'file', onchange: async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        await fetch('/api/v1/exhibits/upload', { method: 'POST', body: fd });
+        log(`exhibit upload OK ${file.name}`);
+        await updateExhibits();
+      } catch (err) {
+        log(`exhibit upload ERR ${err?.message || err}`);
+      } finally {
+        e.target.value = '';
+      }
+    } });
+    exHeader.append(refreshBtn, fileInput);
+    exhibitsList = el('ul', { style: { margin: 0, paddingLeft: '16px' } });
+    exhibitsSection.append(exHeader, exhibitsList);
+
+    approvalsSection = section('Approvals (stub)');
+    approvalsSection.append(el('div', {}, ['No approvers configured.']));
+
+    statusBox = el('div', { style: { fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', maxHeight: '160px', overflow: 'auto' } });
+
+    container.append(header, actionsSection, exhibitsSection, approvalsSection, statusBox);
+    root.append(container);
     initialized = true;
     connectSSE();
   }
@@ -110,6 +154,9 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
           log(`SSE ${ev.data}`);
           if (payload?.type === 'finalize' || payload?.type === 'documentUpload' || payload?.type === 'documentRevert' || payload?.type === 'checkout' || payload?.type === 'checkin') {
             updateUI();
+          }
+          if (payload?.type === 'exhibitUpload') {
+            updateExhibits();
           }
         } catch {
           log(`SSE parse ERR`);
@@ -164,8 +211,28 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     }
   }
 
+  async function updateExhibits() {
+    try {
+      const res = await fetch('/api/v1/exhibits');
+      if (!res.ok) throw new Error('exhibits');
+      const j = await res.json();
+      exhibitsList.innerHTML = '';
+      const items = Array.isArray(j.items) ? j.items : [];
+      for (const it of items) {
+        const li = el('li');
+        const a = el('a', { href: it.url, target: '_blank' }, [it.name]);
+        li.append(a);
+        exhibitsList.append(li);
+      }
+      if (items.length === 0) { exhibitsList.append(el('li', {}, ['(none)'])); }
+    } catch (err) {
+      log(`exhibits ERR ${err?.message || err}`);
+    }
+  }
+
   ensureDom();
   updateUI();
+  updateExhibits();
 }
 
 
