@@ -220,7 +220,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     buttonsRow.innerHTML = '';
     // Word-only document actions should always be present
     if (isWord()) {
-      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => openWordDocumentFromUrl('/documents/default.docx') }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
+      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => openWordDocumentFromUrl('/documents/canonical/default.docx') }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
       const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
       const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
       filePick.onchange = async (e) => {
@@ -240,7 +240,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       buttonsRow.append(viewLatestBtn, openNewBtn, filePick);
     } else {
       // Web: ask host page to swap SuperDoc document
-      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/default.docx' } })) }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
+      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/canonical/default.docx' } })) }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
       const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
       const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
       filePick.onchange = async (e) => {

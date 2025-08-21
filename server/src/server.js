@@ -156,6 +156,21 @@ app.get('/documents/default.docx', (req, res) => {
   res.sendFile(p);
 });
 
+// Explicit canonical/working document endpoints
+app.get('/documents/canonical/default.docx', (req, res) => {
+  const p = path.join(canonicalDocumentsDir, 'default.docx');
+  if (!fs.existsSync(p)) return res.status(404).send('canonical default.docx not found');
+  res.setHeader('Content-Disposition', 'inline; filename="default.docx"');
+  res.sendFile(p);
+});
+
+app.get('/documents/working/default.docx', (req, res) => {
+  const p = path.join(workingDocumentsDir, 'default.docx');
+  if (!fs.existsSync(p)) return res.status(404).send('working default.docx not found');
+  res.setHeader('Content-Disposition', 'inline; filename="default.docx"');
+  res.sendFile(p);
+});
+
 // Serve canonical exhibits
 app.get('/exhibits/:name', (req, res) => {
   const w = path.join(workingExhibitsDir, req.params.name);
