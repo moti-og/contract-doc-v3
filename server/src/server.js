@@ -8,8 +8,8 @@ const compression = require('compression');
 const multer = require('multer');
 
 // Configuration
-const APP_PORT = Number(process.env.PORT || 3007);
-const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || 'http://localhost:4100';
+const APP_PORT = Number(process.env.PORT || 4001);
+const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || 'http://localhost:4002';
 
 // Paths
 const rootDir = path.resolve(__dirname, '..', '..');

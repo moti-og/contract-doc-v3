@@ -12,8 +12,8 @@ These notes document how we use Docker locally for the collaboration backend (Ho
 - Compose: `ops/docker/docker-compose.yml`
 - Collab build context: `collab/`
 - Service name: `superdoc`
-- Port mapping: `4100:4100` (HTTP and WebSocket at `http://localhost:4100` / `ws://localhost:4100`)
-- App server default `SUPERDOC_BASE_URL`: `http://localhost:4100`
+- Port mapping: `4002:4100` (HTTP and WebSocket at `http://localhost:4002` / `ws://localhost:4002`)
+- App server default `SUPERDOC_BASE_URL`: `http://localhost:4002`
 
 ### Start sequence (after reboot)
 ```powershell

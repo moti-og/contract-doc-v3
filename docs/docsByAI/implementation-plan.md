@@ -9,7 +9,7 @@
 - Identical contracts and rendering for Word add-in and Web; diverge only if required by platform
 
 ## Architecture baseline
-- Server (Node, port 3001)
+- Server (Node, port 4001)
   - HTTPS with a trusted local dev certificate; host web and add-in from the same origin
   - Serves static assets (including a shared SuperDoc bootstrap module and a shared React UI module)
   - API: state matrix, document metadata, finalize/unfinalize, approvals (stub), uploads, exhibits
@@ -20,7 +20,7 @@
   - Word add-in: taskpane HTML that does the same, hosted from the same server
   - Shared: zero duplicated init code; load one bootstrap module and one UI module from the server in both clients
 - SuperDoc backend
-  - Run locally in Docker at `https://localhost:4100` with CORS allowing `https://localhost:3001`
+  - Run locally in Docker at `https://localhost:4002` with CORS allowing `https://localhost:4001`
 
 ## File/folder map
 - `server/public/superdoc-init.js`: exports `mountSuperdoc(options)`; calls `new SuperDoc(...)`
@@ -51,7 +51,7 @@
 Include in each client HTML:
 - `<link href="https://cdn.jsdelivr.net/npm/@harbour-enterprises/superdoc/dist/style.css" rel="stylesheet">`
 - `<script src="https://cdn.jsdelivr.net/npm/@harbour-enterprises/superdoc/dist/superdoc.es.js" type="module"></script>`
-Both clients import `https://localhost:3001/static/superdoc-init.js` and call:
+Both clients import `https://localhost:4001/static/superdoc-init.js` and call:
 ```
 mountSuperdoc({
   selector: '#superdoc',
@@ -69,7 +69,7 @@ Include in each client HTML:
 - `<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>`
 Then import and mount our shared module:
 ```
-import { mountApp } from 'https://localhost:3001/static/ui/components.js';
+import { mountApp } from 'https://localhost:4001/static/ui/components.js';
 mountApp({ rootSelector: '#app-root' });
 ```
 

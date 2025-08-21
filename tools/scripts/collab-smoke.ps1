@@ -3,7 +3,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/scripts/collab-smoke.ps1 -Port 4100
 
 param(
-	[int]$Port = 4100,
+	[int]$Port = 4002,
 	[string]$Compose = "ops/docker/docker-compose.yml"
 )
 

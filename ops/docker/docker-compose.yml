@@ -4,7 +4,7 @@ services:
     container_name: superdoc
     restart: unless-stopped
     ports:
-      - "4100:4100"
+      - "4002:4100"
     environment:
       - NODE_ENV=development
       - SUPERDOC_PORT=4100
