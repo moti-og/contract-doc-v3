@@ -109,11 +109,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     // Connection + last event badges
     connectionBadge = el('span', { id: 'conn-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['disconnected']);
     lastEventBadge = el('span', { id: 'last-event-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['last: —']);
-    const userSel = el('select', { onchange: async (e) => { currentUser = e.target.value; log(`user set to ${currentUser}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, [
-      el('option', { value: 'user1', selected: 'selected' }, ['user1']),
-      el('option', { value: 'user2' }, ['user2']),
-      el('option', { value: 'user3' }, ['user3']),
-    ]);
+    const userSel = el('select', { onchange: async (e) => { currentUser = e.target.value; log(`user set to ${currentUser}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } });
     const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, [
       el('option', { value: 'editor', selected: 'selected' }, ['editor']),
       el('option', { value: 'vendor' }, ['vendor']),
@@ -312,7 +308,19 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   }
 
   ensureDom();
-  updateUI();
+  // Populate users dynamically
+  (async () => {
+    try {
+      const r = await fetch('/api/v1/users');
+      const j = await r.json();
+      const items = Array.isArray(j.items) ? j.items : ['user1','user2','user3'];
+      userSel.innerHTML = '';
+      for (const u of items) {
+        userSel.append(el('option', { value: u, selected: u === currentUser ? 'selected' : null }, [u]));
+      }
+    } catch {}
+    updateUI();
+  })();
   updateExhibits();
 }
 

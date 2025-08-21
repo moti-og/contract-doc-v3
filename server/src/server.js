@@ -21,6 +21,7 @@ const SSE_RETRY_MS = (() => {
 const rootDir = path.resolve(__dirname, '..', '..');
 const publicDir = path.join(rootDir, 'server', 'public');
 const dataAppDir = path.join(rootDir, 'data', 'app');
+const dataUsersDir = path.join(dataAppDir, 'users');
 const dataWorkingDir = path.join(rootDir, 'data', 'working');
 const canonicalDocumentsDir = path.join(dataAppDir, 'documents');
 const canonicalExhibitsDir = path.join(dataAppDir, 'exhibits');
@@ -178,6 +179,18 @@ const upload = multer({ storage });
 // API v1
 app.get('/api/v1/health', (req, res) => {
   res.json({ ok: true, superdoc: SUPERDOC_BASE_URL });
+});
+
+app.get('/api/v1/users', (req, res) => {
+  try {
+    const p = path.join(dataUsersDir, 'users.json');
+    if (!fs.existsSync(p)) return res.json({ items: ['user1','user2','user3'] });
+    const list = JSON.parse(fs.readFileSync(p, 'utf8'));
+    if (Array.isArray(list)) return res.json({ items: list });
+    return res.json({ items: ['user1','user2','user3'] });
+  } catch {
+    return res.json({ items: ['user1','user2','user3'] });
+  }
 });
 
 app.get('/api/v1/current-document', (req, res) => {
