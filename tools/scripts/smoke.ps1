@@ -10,6 +10,12 @@ try {
   Write-Host "Health: $health"
 } catch {}
 
+# Collab (4002) port check
+try {
+  $collab = Test-NetConnection -ComputerName 'localhost' -Port 4002 -InformationLevel Quiet
+  if ($collab) { Write-Host "Collab 4002: PASS (port open)" -ForegroundColor Green } else { Write-Host "Collab 4002: FAIL (no listener)" -ForegroundColor Red }
+} catch { Write-Host "Collab 4002: ERROR $_" -ForegroundColor Yellow }
+
 # SSE capture (3s)
 try {
   $diagDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'diagnostics'
@@ -60,7 +66,11 @@ function Test-Get {
 	}
 }
 
+$collabOk = $false
+try { $collabOk = Test-NetConnection -ComputerName 'localhost' -Port 4002 -InformationLevel Quiet } catch { $collabOk = $false }
+
 $ok = $true
+$ok = $collabOk -and $ok
 $ok = (Test-Get ("{0}/api/v1/health" -f $Origin) "health") -and $ok
 $ok = (Test-Get ("{0}/static/vendor/superdoc/superdoc.umd.min.js" -f $Origin) "superdoc-js") -and $ok
 $ok = (Test-Get ("{0}/static/vendor/superdoc/style.css" -f $Origin) "superdoc-css") -and $ok
