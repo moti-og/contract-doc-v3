@@ -12,10 +12,11 @@ try {
 
 # SSE capture (3s)
 try {
-  $tmp = New-TemporaryFile
-  curl.exe -k "$Base/api/v1/events" --max-time 3 -o $tmp.FullName | Out-Null
-  Get-Content $tmp.FullName | Select-Object -First 5 | ForEach-Object { Write-Host $_ }
-  Remove-Item $tmp -ErrorAction SilentlyContinue
+  $diagDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'diagnostics'
+  if (-not (Test-Path $diagDir)) { New-Item -ItemType Directory -Path $diagDir | Out-Null }
+  $tmpPath = Join-Path $diagDir ('sse-' + ((Get-Date).ToString('yyyyMMdd-HHmmss')) + '.txt')
+  curl.exe -k "$Base/api/v1/events" --max-time 3 -o $tmpPath | Out-Null
+  Get-Content $tmpPath | Select-Object -First 5 | ForEach-Object { Write-Host $_ }
 } catch {}
 
 # Send client test event
