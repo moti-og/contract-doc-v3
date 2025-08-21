@@ -11,6 +11,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 // Configuration
 const APP_PORT = Number(process.env.PORT || 4001);
 const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || 'http://localhost:4002';
+const ADDIN_DEV_ORIGIN = process.env.ADDIN_DEV_ORIGIN || 'https://localhost:4000';
 
 // Paths
 const rootDir = path.resolve(__dirname, '..', '..');
@@ -48,9 +49,9 @@ const app = express();
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 
-// CORS for Yeoman add-in dev server (e.g., https://localhost:4000)
+// CORS for Yeoman add-in dev server
 const allowedOrigins = new Set([
-  'https://localhost:4000',
+  ADDIN_DEV_ORIGIN,
 ]);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
