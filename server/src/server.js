@@ -201,6 +201,14 @@ app.get('/api/v1/events', (req, res) => {
 // HTTPS preferred; fallback to HTTP if certs missing
 function tryCreateHttpsServer() {
   try {
+    // Prefer PFX if available (works without openssl)
+    const pfxPath = process.env.SSL_PFX_PATH || path.join(rootDir, 'server', 'config', 'dev-cert.pfx');
+    const pfxPass = process.env.SSL_PFX_PASS || 'password';
+    if (fs.existsSync(pfxPath)) {
+      const opts = { pfx: fs.readFileSync(pfxPath), passphrase: pfxPass };
+      return https.createServer(opts, app);
+    }
+    // Fallback to PEM key/cert
     const keyPath = process.env.SSL_KEY_PATH || path.join(rootDir, 'server', 'config', 'dev-key.pem');
     const certPath = process.env.SSL_CERT_PATH || path.join(rootDir, 'server', 'config', 'dev-cert.pem');
     if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
