@@ -56,7 +56,17 @@
     }
     #layout { position: relative; display: flex; height: calc(100vh - var(--banner-h)); }
     #editor-col { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; min-width: 0; }
-    #superdoc-toolbar { position: relative; z-index: 1; border-bottom: 1px solid #ddd; }
+    #superdoc-toolbar {
+      position: relative;
+      z-index: 1;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 6px 10px;
+      max-width: 980px;   /* keep the toolbar from stretching full width */
+      margin: 0 auto;     /* center within the editor column */
+    }
     #superdoc { position: relative; z-index: 1; flex: 1; min-height: 0; }
     #pane { position: relative; z-index: 10; width: 360px; max-width: 420px; border-left: 1px solid #eee; display: flex; flex-direction: column; padding-top: 20px; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.08); }
     #app-root { padding: 8px 12px; overflow: auto; background: #fff; }
