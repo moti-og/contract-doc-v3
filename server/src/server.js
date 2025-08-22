@@ -416,6 +416,8 @@ app.post('/api/v1/factory-reset', (req, res) => {
     serverState.lastUpdated = new Date().toISOString();
     persistState();
     broadcast({ type: 'factoryReset' });
+    // Also emit documentRevert to trigger existing client handlers
+    broadcast({ type: 'documentRevert' });
     return res.json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: 'Factory reset failed' });
