@@ -313,8 +313,15 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     add('Override Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/override`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('override OK'); await updateUI(); } catch(e){ log(`override ERR ${e.message}`);} }, !!config.buttons.overrideBtn);
     add('Checkin', async () => { try { await fetch(`${API_BASE}/api/v1/checkin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
     add('Cancel Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('cancel OK'); await updateUI(); } catch(e){ log(`cancel ERR ${e.message}`);} }, !!config.buttons.cancelBtn);
-    add('Revert to Canonical', async () => { try { await doPost(`${API_BASE}/api/v1/document/revert`); log('revert OK'); } catch(e){ log(`revert ERR ${e.message}`);} }, true);
-    add('Snapshot', async () => { try { const r = await fetch(`${API_BASE}/api/v1/document/snapshot`, { method: 'POST' }); if (!r.ok) throw new Error('snapshot'); const j = await res.json(); log(`snapshot OK ${j.path || ''}`); } catch(e){ log(`snapshot ERR ${e.message}`);} }, true);
+    // Factory Reset: wipe working overlays and reset state
+    add('Factory Reset', async () => { 
+      try { 
+        const r = await fetch(`${API_BASE}/api/v1/factory-reset`, { method: 'POST' }); 
+        if (!r.ok) throw new Error('factory-reset'); 
+        log('factory reset OK'); 
+        await updateUI(); 
+      } catch(e){ log(`factory reset ERR ${e.message}`);} 
+    }, true);
   }
 
   async function updateUI() {

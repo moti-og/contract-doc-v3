@@ -352,6 +352,36 @@ app.post('/api/v1/document/snapshot', (req, res) => {
   }
 });
 
+// Factory reset: wipe working overlays and reset server state
+app.post('/api/v1/factory-reset', (req, res) => {
+  try {
+    // Remove working document overlay
+    const wDoc = path.join(workingDocumentsDir, 'default.docx');
+    if (fs.existsSync(wDoc)) fs.rmSync(wDoc);
+    // Remove exhibits overlays
+    if (fs.existsSync(workingExhibitsDir)) {
+      for (const f of fs.readdirSync(workingExhibitsDir)) {
+        const p = path.join(workingExhibitsDir, f);
+        try { if (fs.statSync(p).isFile()) fs.rmSync(p); } catch {}
+      }
+    }
+    // Remove snapshots entirely
+    const snapDir = path.join(dataWorkingDir, 'snapshots');
+    if (fs.existsSync(snapDir)) {
+      try { fs.rmSync(snapDir, { recursive: true, force: true }); } catch {}
+    }
+    // Reset state
+    serverState.isFinal = false;
+    serverState.checkedOutBy = null;
+    serverState.lastUpdated = new Date().toISOString();
+    persistState();
+    broadcast({ type: 'factoryReset' });
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'Factory reset failed' });
+  }
+});
+
 // Checkout/Checkin endpoints
 app.post('/api/v1/checkout', (req, res) => {
   const userId = req.body?.userId || 'user1';
