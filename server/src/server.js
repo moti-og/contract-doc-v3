@@ -280,10 +280,10 @@ app.get('/api/v1/state-matrix', (req, res) => {
       approvalsBtn: true,
       finalizeBtn: !!rolePerm.finalize && !serverState.isFinal && canWrite,
       unfinalizeBtn: !!rolePerm.unfinalize && serverState.isFinal && canWrite,
-      checkoutBtn: !!rolePerm.checkout && !isCheckedOut,
-      checkinBtn: !!rolePerm.checkin && isOwner,
-      cancelBtn: !!rolePerm.checkin && isOwner,
-      overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner,
+      checkoutBtn: !!rolePerm.checkout && !isCheckedOut && !serverState.isFinal,
+      checkinBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
+      cancelBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
+      overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner && !serverState.isFinal,
     },
     finalize: {
       isFinal: serverState.isFinal,
@@ -325,10 +325,13 @@ app.get('/api/v1/approvals/state', (req, res) => {
 
 app.post('/api/v1/finalize', (req, res) => {
   const userId = req.body?.userId || 'user1';
+  // Finalize allowed even if someone else has checkout? For safety, require not held by another user.
   if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
     return res.status(409).json({ error: `Checked out by ${serverState.checkedOutBy}` });
   }
   serverState.isFinal = true;
+  // Clear any existing checkout
+  serverState.checkedOutBy = null;
   serverState.lastUpdated = new Date().toISOString();
   persistState();
   broadcast({ type: 'finalize', value: true, userId });
@@ -422,6 +425,9 @@ app.post('/api/v1/factory-reset', (req, res) => {
 // Checkout/Checkin endpoints
 app.post('/api/v1/checkout', (req, res) => {
   const userId = req.body?.userId || 'user1';
+  if (serverState.isFinal) {
+    return res.status(409).json({ error: 'Finalized' });
+  }
   if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
     return res.status(409).json({ error: `Already checked out by ${serverState.checkedOutBy}` });
   }
@@ -469,6 +475,7 @@ app.post('/api/v1/checkout/override', (req, res) => {
   const derivedRole = getUserRole(userId);
   const roleMap = loadRoleMap();
   const canOverride = !!(roleMap[derivedRole] && roleMap[derivedRole].override);
+  if (serverState.isFinal) return res.status(409).json({ error: 'Finalized' });
   if (!canOverride) return res.status(403).json({ error: 'Forbidden' });
   // Allow override only when someone else has checkout
   if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
