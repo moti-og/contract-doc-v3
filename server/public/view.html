@@ -104,8 +104,10 @@
 
         // Mount SuperDoc with the default document URL
         let currentMode = 'editing';
+        let currentDoc = '/documents/default.docx';
         let superdocInstance = null;
         const mount = (doc) => {
+          currentDoc = doc;
           superdocInstance = mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: currentMode, pagination: true, rulers: true, role: currentMode === 'viewing' ? 'viewer' : (currentMode === 'suggesting' ? 'suggester' : 'editor') });
           return superdocInstance;
         };
@@ -125,9 +127,21 @@
             try { doc = new URL(doc, location.origin).href; } catch {}
           }
           mount(doc);
+          // Add/update mode badge
+          try {
+            const badgeId = 'mode-badge';
+            let pill = document.getElementById(badgeId);
+            if (!pill) {
+              pill = document.createElement('span');
+              pill.id = badgeId;
+              pill.style.cssText = 'margin-left:8px;padding:2px 6px;border:1px solid #ddd;border-radius:10px;font-size:12px;background:#fafafa;';
+              document.getElementById('superdoc-toolbar')?.appendChild(pill);
+            }
+            pill.textContent = `mode: ${currentMode}`;
+          } catch {}
         };
         // Initial load
-        render('/documents/default.docx');
+        render(currentDoc);
         // Listen for UI requests to open other docs
         window.addEventListener('superdoc:open-url', (e) => {
           try { render(e.detail?.url || '/documents/default.docx'); } catch(err) { console.warn('open-url failed', err); }
@@ -140,7 +154,7 @@
           if (m && ['editing','suggesting','viewing'].includes(m)) {
             currentMode = m;
             try {
-              if (superdocInstance && typeof superdocInstance.setDocumentMode === 'function' && typeof superdocInstance.on === 'function') {
+              if (superdocInstance && typeof superdocInstance.setDocumentMode === 'function') {
                 superdocInstance.setDocumentMode(currentMode);
                 // Ensure suggestions are visible in suggesting mode
                 if (currentMode === 'suggesting') {
@@ -149,8 +163,10 @@
                 }
               } else {
                 // Fallback: remount if instance API not available
-                render('/documents/default.docx');
+                render(currentDoc);
               }
+              // Update badge
+              try { const b = document.getElementById('mode-badge'); if (b) b.textContent = `mode: ${currentMode}`; } catch {}
             } catch { /* ignore */ }
           }
         });
