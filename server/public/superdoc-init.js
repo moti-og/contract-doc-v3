@@ -1,5 +1,4 @@
-// Shared SuperDoc bootstrap used by both web and add-in
-// Prefer UMD build from CDN at runtime to avoid bare-import issues in ESM
+// Legacy path retained; new canonical path is /web/superdoc-init.js
 
 function detectCtor() {
   const g = typeof globalThis !== 'undefined' ? globalThis : window;

@@ -20,6 +20,8 @@ const SSE_RETRY_MS = (() => {
 // Paths
 const rootDir = path.resolve(__dirname, '..', '..');
 const publicDir = path.join(rootDir, 'server', 'public');
+const sharedUiDir = path.join(rootDir, 'shared-ui');
+const webDir = path.join(rootDir, 'web');
 const dataAppDir = path.join(rootDir, 'data', 'app');
 const dataUsersDir = path.join(dataAppDir, 'users');
 const dataWorkingDir = path.join(rootDir, 'data', 'working');
@@ -132,7 +134,14 @@ app.use((req, res, next) => {
 });
 
 // Static assets
-app.use('/static', express.static(publicDir, { fallthrough: true }));
+// Serve vendor bundles (SuperDoc) under /vendor
+app.use('/vendor', express.static(path.join(publicDir, 'vendor'), { fallthrough: true }));
+// Serve shared UI under /ui
+app.use('/ui', express.static(sharedUiDir, { fallthrough: true }));
+// Keep legacy /static/vendor path for any hard-coded references (optional, can be removed later)
+app.use('/static/vendor', express.static(path.join(publicDir, 'vendor'), { fallthrough: true }));
+// Serve web static assets (helper scripts) under /web
+app.use('/web', express.static(webDir, { fallthrough: true }));
 
 // WebSocket reverse proxy for collaboration under same HTTPS origin
 const COLLAB_TARGET = process.env.COLLAB_TARGET || 'http://localhost:4002';
@@ -150,10 +159,10 @@ app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
 // Debug and view pages
 app.get('/debug', (req, res) => {
-  res.sendFile(path.join(publicDir, 'debug.html'));
+  res.sendFile(path.join(webDir, 'debug.html'));
 });
 app.get(['/view', '/'], (req, res) => {
-  res.sendFile(path.join(publicDir, 'view.html'));
+  res.sendFile(path.join(webDir, 'view.html'));
 });
 
 // Files: default document resolution (working copy preferred)

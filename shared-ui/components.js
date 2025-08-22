@@ -1,5 +1,32 @@
-// Legacy file retained temporarily; forward to shared-ui
-export { mountApp } from '../../../shared-ui/components.js';
+// Simple shared UI module rendered by both clients
+// Exports mountApp({ rootSelector }) which fetches the state matrix and renders action buttons
+
+export function mountApp({ rootSelector = '#app-root' } = {}) {
+  const root = document.querySelector(rootSelector);
+  if (!root) return;
+
+  const el = (tag, attrs = {}, children = []) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === 'style' && typeof v === 'object') Object.assign(n.style, v);
+      else if (k.startsWith('on') && typeof v === 'function') n[k] = v;
+      else n.setAttribute(k, v);
+    }
+    for (const c of children) n.append(c);
+    return n;
+  };
+
+  // Determine backend origin so add-in (4000) hits the server (4001) directly
+  const API_BASE = (() => {
+    try {
+      const src = Array.from(document.scripts)
+        .map(s => s.src)
+        .find(u => typeof u === 'string' && /(^|\/)components\.js(\?|$)/.test(u));
+      if (src) return new URL(src).origin;
+    } catch {}
+    try { return location.origin; } catch {}
+    return 'https://localhost:4001';
+  })();
 
   function detectPlatform() {
     const hasOffice = typeof window.Office !== 'undefined';
@@ -70,8 +97,7 @@ export { mountApp } from '../../../shared-ui/components.js';
         try {
           if (typeof onAction === 'function') await onAction(values, a.id);
         } finally {
-          if (a.id !== 'save') { try { overlay.remove(); activeModalEl = null; } catch {} }
-          else { try { overlay.remove(); activeModalEl = null; } catch {} }
+          try { overlay.remove(); activeModalEl = null; } catch {}
         }
       } }, [el('span', { class: 'ms-Button-label' }, [a.label || a.id])]);
       if (a.variant === 'primary') {
@@ -91,7 +117,6 @@ export { mountApp } from '../../../shared-ui/components.js';
   function getModeForRole(role) {
     const r = (role || '').toLowerCase();
     if (r === 'viewer') return 'viewing';
-    // Map suggestor and vendor to suggesting
     if (r === 'suggestor' || r === 'vendor') return 'suggesting';
     return 'editing';
   }
@@ -497,5 +522,6 @@ export { mountApp } from '../../../shared-ui/components.js';
   })();
   updateExhibits();
 }
+
 
 
