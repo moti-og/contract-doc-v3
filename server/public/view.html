@@ -26,6 +26,9 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.12) inset, 0 2px 6px rgba(0,0,0,0.08);
       border-bottom: 1px solid rgba(255,255,255,0.25);
     }
+    /* Finalize state styles */
+    #banner.finalized { background: linear-gradient(180deg, #b91c1c 0%, #ef4444 100%); }
+    #banner.draft { background: linear-gradient(180deg, #2563eb 0%, #60a5fa 100%); }
     .banner-inner {
       position: relative;
       width: 100%;
@@ -172,6 +175,8 @@
               const pill = document.querySelector('.pill-left');
               if (title) title.textContent = `${banner.title}: ${banner.message}`;
               if (pill) pill.textContent = banner.title === 'Finalized' ? 'Finalized' : 'Draft';
+              top.classList.remove('finalized','draft');
+              top.classList.add(banner.title === 'Finalized' ? 'finalized' : 'draft');
               console.log('[banner] updated:', banner);
             }
           } catch {}
