@@ -58,6 +58,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let buttonsGrid;
   let themeTokens = null;
   let activeModalEl = null;
+  let lastRevision = 0;
 
   async function renderServerModal(schema, onAction) {
     try { if (activeModalEl) { activeModalEl.remove(); activeModalEl = null; } } catch {}
@@ -214,6 +215,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     ]);
     connectionBadge = el('span', { id: 'conn-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['disconnected']);
     lastEventBadge = el('span', { id: 'last-event-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['last: —']);
+    const resyncBtn = el('button', { class: 'ms-Button', onclick: () => { log('manual resync'); updateUI(); } }, [el('span', { class: 'ms-Button-label' }, ['Resync'])]);
     const userSel = el('select', { onchange: async (e) => { 
       currentUser = e.target.value; 
       try {
@@ -226,7 +228,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       updateUI();
     } });
     userSelectEl = userSel;
-    header.append(connectionBadge, lastEventBadge);
+    header.append(connectionBadge, lastEventBadge, resyncBtn);
 
     // User row: role badge + user dropdown
     userRolePillEl = el('span', { style: { background: '#fde68a', color: '#92400e', border: '1px solid #fbbf24', borderRadius: '999px', padding: '2px 8px', fontSize: '11px', fontWeight: '700' } }, [currentRole.toUpperCase()]);
@@ -338,11 +340,20 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         setConnected(true);
         reconnectAttempt = 0;
         log('SSE open');
+        // On fresh open, force a UI refresh to pick up any missed state
+        updateUI();
       };
       sse.onmessage = (ev) => {
         try {
           const payload = JSON.parse(ev.data);
           setLastEvent(payload?.ts || Date.now());
+          // Auto-resync if we detect a revision jump backwards (server restart) or gap
+          const r = Number(payload?.revision || 0);
+          if (r && r !== lastRevision) {
+            if (lastRevision && r < lastRevision) log(`revision restart detected (${lastRevision} -> ${r}), resync`);
+            lastRevision = r;
+            updateUI();
+          }
           if (payload?.documentId && currentDocumentId && payload.documentId !== currentDocumentId) {
             log(`SSE ignored (doc mismatch: ${payload.documentId} != ${currentDocumentId})`);
             return;
@@ -430,7 +441,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
   async function updateUI() {
     try {
-      const { config } = await fetchMatrix();
+      const { config, revision } = await fetchMatrix();
+      if (typeof revision === 'number') lastRevision = revision;
       if (config?.documentId) {
         currentDocumentId = config.documentId;
         const badgeId = 'doc-id-badge';

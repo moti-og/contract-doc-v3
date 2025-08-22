@@ -41,6 +41,7 @@ const serverState = {
   isFinal: false,
   checkedOutBy: null,
   lastUpdated: new Date().toISOString(),
+  revision: 1,
 };
 
 // Load persisted state if available
@@ -51,13 +52,20 @@ try {
     if (typeof saved.isFinal === 'boolean') serverState.isFinal = saved.isFinal;
     if (saved.checkedOutBy === null || typeof saved.checkedOutBy === 'string') serverState.checkedOutBy = saved.checkedOutBy;
     if (typeof saved.lastUpdated === 'string') serverState.lastUpdated = saved.lastUpdated;
+    if (typeof saved.revision === 'number') serverState.revision = saved.revision;
   }
 } catch {}
 
 function persistState() {
   try {
-    fs.writeFileSync(stateFilePath, JSON.stringify({ isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated }, null, 2));
+    fs.writeFileSync(stateFilePath, JSON.stringify({ isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated, revision: serverState.revision }, null, 2));
   } catch {}
+}
+
+function bumpRevision() {
+  serverState.revision = (Number(serverState.revision) || 0) + 1;
+  serverState.lastUpdated = new Date().toISOString();
+  persistState();
 }
 
 // Helpers: users/roles
@@ -102,7 +110,7 @@ function buildBanner({ isFinal, isCheckedOut, isOwner, checkedOutBy }) {
 // SSE clients
 const sseClients = new Set();
 function broadcast(event) {
-  const payload = `data: ${JSON.stringify({ documentId: DOCUMENT_ID, ...event, ts: Date.now() })}\n\n`;
+  const payload = `data: ${JSON.stringify({ documentId: DOCUMENT_ID, revision: serverState.revision, ...event, ts: Date.now() })}\n\n`;
   for (const res of sseClients) {
     try {
       res.write(payload);
@@ -142,6 +150,12 @@ app.use('/ui', express.static(sharedUiDir, { fallthrough: true }));
 app.use('/static/vendor', express.static(path.join(publicDir, 'vendor'), { fallthrough: true }));
 // Serve web static assets (helper scripts) under /web
 app.use('/web', express.static(webDir, { fallthrough: true }));
+
+// Prevent caches on JSON APIs to avoid stale state
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
 // WebSocket reverse proxy for collaboration under same HTTPS origin
 const COLLAB_TARGET = process.env.COLLAB_TARGET || 'http://localhost:4002';
@@ -268,6 +282,7 @@ app.get('/api/v1/current-document', (req, res) => {
     filename: 'default.docx',
     filePath: exists ? p : null,
     lastUpdated: serverState.lastUpdated,
+    revision: serverState.revision,
   });
 });
 
@@ -307,7 +322,7 @@ app.get('/api/v1/state-matrix', (req, res) => {
       ? { type: isOwner ? 'info' : 'warning', text: isOwner ? `Checked out by you` : `Checked out by ${serverState.checkedOutBy}` }
       : { type: 'success', text: 'Available for editing' },
   };
-  res.json({ config });
+  res.json({ config, revision: serverState.revision });
 });
 
 // Theme endpoint: returns style tokens for clients (banner colors, etc.)
@@ -581,6 +596,7 @@ app.get('/api/v1/events', (req, res) => {
   try {
     const initial = {
       documentId: DOCUMENT_ID,
+      revision: serverState.revision,
       type: 'hello',
       state: { isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy },
       ts: Date.now(),
