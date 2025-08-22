@@ -50,7 +50,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   function getModeForRole(role) {
     const r = (role || '').toLowerCase();
     if (r === 'viewer') return 'viewing';
-    if (r === 'suggestor' || r === 'vendor') return 'suggesting';
+    // Until SuperDoc suggestion mode is wired, treat suggestor/vendor as view-only on the web
+    if (r === 'suggestor' || r === 'vendor') return 'viewing';
     return 'editing';
   }
 
