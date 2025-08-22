@@ -24,7 +24,7 @@
 
 ## File/folder map
 - `server/public/superdoc-init.js`: exports `mountSuperdoc(options)`; calls `new SuperDoc(...)`
-- `server/public/ui/components.js`: exports React components + `mountApp(...)`
+- `/ui/components.react.js`: React entry with Theme/State providers and right‑pane components
 - `clients/web/public/index.html`: contains `#superdoc-toolbar`, `#superdoc`, and `#app-root`; imports bootstrap and UI module
 - `clients/addin-yo/src/taskpane/taskpane.html`: Yeoman taskpane (served by dev server on 4000)
 - `clients/addin-yo/manifest.xml`: taskpane manifest (served URLs on port 4000)
@@ -69,7 +69,7 @@ Include in each client HTML:
 - `<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>`
 Then import and mount our shared module:
 ```
-import { mountApp } from 'https://localhost:4001/static/ui/components.js';
+// React entry is loaded via script tag: /ui/components.react.js
 mountApp({ rootSelector: '#app-root' });
 ```
 
@@ -82,7 +82,7 @@ mountApp({ rootSelector: '#app-root' });
 
 2) Shared bootstrap + UI module
 - Implement `server/public/superdoc-init.js` exporting `mountSuperdoc(options)`; log onReady/onEditorCreate
-- Implement `server/public/ui/components.js` exporting shared React components and `mountApp(...)`
+- Implement `/ui/components.react.js` as the shared React entry
 - Centralize default options (document path, pagination, rulers)
 
 3) Web client

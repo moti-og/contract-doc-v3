@@ -37,6 +37,8 @@
       currentRole: 'editor',
       users: [],
       setUser: () => {},
+      logs: [],
+      addLog: () => {},
     });
 
     function ThemeProvider(props) {
@@ -58,7 +60,15 @@
       const [userId, setUserId] = React.useState('user1');
       const [role, setRole] = React.useState('editor');
       const [users, setUsers] = React.useState([]);
+      const [logs, setLogs] = React.useState([]);
       const API_BASE = getApiBase();
+
+      const addLog = React.useCallback((m) => {
+        try {
+          const ts = new Date().toLocaleTimeString();
+          setLogs((prev) => prev.concat(`[${ts}] ${m}`));
+        } catch {}
+      }, []);
 
       const refresh = React.useCallback(async () => {
         try { const r = await fetch(`${API_BASE}/api/v1/state-matrix?platform=web&userId=${encodeURIComponent(userId)}`); if (r.ok) { const j = await r.json(); setConfig(j.config || null); if (typeof j.revision === 'number') setRevision(j.revision); } } catch {}
@@ -85,14 +95,14 @@
         let sse;
         try {
           sse = new EventSource(`${API_BASE}/api/v1/events`);
-          sse.onopen = () => setIsConnected(true);
+          sse.onopen = () => { setIsConnected(true); addLog('SSE open'); };
           sse.onmessage = (ev) => {
-            try { const p = JSON.parse(ev.data); if (p && p.ts) setLastTs(p.ts); if (typeof p.revision === 'number') setRevision(p.revision); refresh(); } catch {}
+            try { addLog(`SSE ${ev.data}`); const p = JSON.parse(ev.data); if (p && p.ts) setLastTs(p.ts); if (typeof p.revision === 'number') setRevision(p.revision); refresh(); } catch {}
           };
-          sse.onerror = () => setIsConnected(false);
+          sse.onerror = () => { setIsConnected(false); addLog('SSE error'); };
         } catch {}
         return () => { try { sse && sse.close(); } catch {} };
-      }, [API_BASE, refresh]);
+      }, [API_BASE, refresh, addLog]);
 
       async function exportWordDocumentAsBase64() {
         return new Promise((resolve, reject) => {
@@ -153,7 +163,7 @@
         setUser: (nextUserId, nextRole) => { try { setUserId(nextUserId); if (nextRole) setRole(nextRole); } catch {} },
       }), [API_BASE, refresh, userId]);
 
-      return React.createElement(StateContext.Provider, { value: { config, revision, actions, isConnected, lastTs, currentUser: userId, currentRole: role, users } }, props.children);
+      return React.createElement(StateContext.Provider, { value: { config, revision, actions, isConnected, lastTs, currentUser: userId, currentRole: role, users, logs, addLog } }, props.children);
     }
 
     function BannerStack() {
@@ -182,19 +192,29 @@
 
     function ActionButtons() {
       const { config, actions } = React.useContext(StateContext);
+      const [confirm, setConfirm] = React.useState(null);
+      const { tokens } = React.useContext(ThemeContext);
       const btns = (config && config.buttons) ? config.buttons : {};
-      const add = (label, onClick, show) => show ? React.createElement('button', { key: label, className: 'ms-Button', onClick: onClick, style: { margin: '4px' } }, React.createElement('span', { className: 'ms-Button-label' }, label)) : null;
-      return React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px' } }, [
-        add('Checkout', actions.checkout, !!btns.checkoutBtn),
-        add('Checkin', actions.checkin, !!btns.checkinBtn),
-        add('Cancel Checkout', actions.cancel, !!btns.cancelBtn),
-        add('Save Progress', actions.saveProgress, !!btns.saveProgressBtn),
-        add('Finalize', actions.finalize, !!btns.finalizeBtn),
-        add('Unfinalize', actions.unfinalize, !!btns.unfinalizeBtn),
-        add('Override Checkout', actions.override, !!btns.overrideBtn),
-        add('Send to Vendor', () => actions.sendVendor({}), !!btns.sendVendorBtn),
-        add('Factory Reset', actions.factoryReset, true),
-      ].filter(Boolean));
+      const themed = (variant) => {
+        const t = tokens && tokens.buttons && tokens.buttons[variant];
+        return t ? { background: t.bg, color: t.fg, border: `1px solid ${t.border}` } : {};
+      };
+      const add = (label, onClick, show, variant = 'secondary') => show ? React.createElement('button', { key: label, className: 'ms-Button', onClick: onClick, style: Object.assign({ margin: '4px' }, themed(variant)) }, React.createElement('span', { className: 'ms-Button-label' }, label)) : null;
+      const ask = (title, message, onConfirm) => setConfirm({ title, message, onConfirm });
+      return React.createElement(React.Fragment, null,
+        React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px' } }, [
+          add('Checkout', actions.checkout, !!btns.checkoutBtn),
+          add('Checkin', actions.checkin, !!btns.checkinBtn),
+          add('Cancel Checkout', actions.cancel, !!btns.cancelBtn),
+          add('Save Progress', actions.saveProgress, !!btns.saveProgressBtn, 'primary'),
+          add('Finalize', () => ask('Finalize?', 'This will lock the document.', actions.finalize), !!btns.finalizeBtn, 'primary'),
+          add('Unfinalize', () => ask('Unlock?', 'This will unlock the document.', actions.unfinalize), !!btns.unfinalizeBtn),
+          add('Override Checkout', actions.override, !!btns.overrideBtn),
+          add('Send to Vendor', () => actions.sendVendor({}), !!btns.sendVendorBtn),
+          add('Factory Reset', () => ask('Factory reset?', 'This will clear working data.', actions.factoryReset), true),
+        ].filter(Boolean)),
+        confirm ? React.createElement(ConfirmModal, { title: confirm.title, message: confirm.message, onConfirm: confirm.onConfirm, onClose: () => setConfirm(null) }) : null
+      );
     }
 
     function ExhibitsList() {
@@ -206,6 +226,41 @@
         React.createElement('div', { style: { fontWeight: 600, marginTop: '8px' } }, 'Exhibits'),
         items.length ? React.createElement('ul', null, items.map((it, i) => React.createElement('li', { key: i }, React.createElement('a', { href: it.url, target: '_blank' }, it.name)))) : React.createElement('div', null, '(none)')
       );
+    }
+
+    function NotificationsPanel() {
+      const { logs } = React.useContext(StateContext);
+      const copy = async () => {
+        try {
+          const text = (logs || []).join('\n');
+          if (navigator?.clipboard?.writeText) await navigator.clipboard.writeText(text);
+        } catch {}
+      };
+      const btn = React.createElement('button', { className: 'ms-Button', onClick: copy, style: { alignSelf: 'flex-end', marginBottom: '4px' } }, React.createElement('span', { className: 'ms-Button-label' }, 'Copy'));
+      const box = React.createElement('div', { style: { fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', maxHeight: '160px', overflow: 'auto' } }, (logs || []).join('\n'));
+      return React.createElement('div', { style: { display: 'flex', flexDirection: 'column' } }, [btn, box]);
+    }
+
+    function ChatConsole() {
+      const API_BASE = getApiBase();
+      const { currentUser } = React.useContext(StateContext);
+      const [messages, setMessages] = React.useState(["Hi, I'm OG Assist. How can I help you?"]);
+      const [text, setText] = React.useState('');
+      const send = async () => {
+        const t = (text || '').trim();
+        if (!t) return;
+        setMessages((m) => m.concat(t));
+        setText('');
+        try {
+          await fetch(`${API_BASE}/api/v1/events/client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat', payload: { text: t }, userId: currentUser, platform: 'web' }) });
+        } catch {}
+      };
+      const box = React.createElement('div', { style: { border: '1px solid #ddd', borderRadius: '6px', padding: '8px', height: '120px', overflow: 'auto', background: '#fff' } }, messages.map((m, i) => React.createElement('div', { key: i, style: { marginTop: i ? '6px' : 0 } }, m)));
+      const input = React.createElement('input', { type: 'text', value: text, onChange: (e) => setText(e.target.value), placeholder: 'Type a message...', style: { flex: 1, padding: '6px 8px', border: '1px solid #ddd', borderRadius: '4px' } });
+      const btn = React.createElement('button', { className: 'ms-Button', onClick: send }, React.createElement('span', { className: 'ms-Button-label' }, 'Send'));
+      const row = React.createElement('div', { style: { display: 'flex', gap: '8px' } }, [input, btn]);
+      const wrap = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } }, [box, row]);
+      return React.createElement('div', null, [React.createElement('div', { key: 'hdr', style: { fontWeight: 600 } }, 'Assistant'), wrap]);
     }
 
     function UserCard() {
@@ -311,6 +366,31 @@
       );
     }
 
+    function ConfirmModal(props) {
+      const { title, message, onConfirm, onClose } = props || {};
+      const { tokens } = React.useContext(ThemeContext);
+      const t = tokens && tokens.modal ? tokens.modal : {};
+      const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 };
+      const panelStyle = { width: '520px', maxWidth: '95vw', background: t.background || '#fff', border: `1px solid ${t.border || '#e5e7eb'}`, borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' };
+      const headerStyle = { padding: '14px 16px', borderBottom: `1px solid ${t.border || '#e5e7eb'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: t.headerBg || '#fff', color: t.headerFg || '#111827' };
+      const bodyStyle = { padding: '16px' };
+      const footerStyle = { padding: '12px 16px', borderTop: `1px solid ${t.border || '#e5e7eb'}`, display: 'flex', justifyContent: 'flex-end', gap: '8px' };
+      const btn = (label, variant, onclick) => React.createElement('button', { className: 'ms-Button', onClick: onclick, style: variant==='primary' ? { background: t.primary || '#111827', color: '#fff', border: `1px solid ${t.primary || '#111827'}` } : {} }, label);
+      return React.createElement('div', { style: overlayStyle, onClick: (e) => { if (e.target === e.currentTarget) onClose?.(); } },
+        React.createElement('div', { style: panelStyle }, [
+          React.createElement('div', { key: 'h', style: headerStyle }, [
+            React.createElement('div', { key: 't', style: { fontWeight: 700 } }, title || 'Confirm'),
+            React.createElement('button', { key: 'x', onClick: onClose, style: { border: 'none', background: 'transparent' } }, '✕')
+          ]),
+          React.createElement('div', { key: 'b', style: bodyStyle }, message || ''),
+          React.createElement('div', { key: 'f', style: footerStyle }, [
+            btn('Cancel', 'secondary', onClose),
+            btn('Confirm', 'primary', async () => { try { await onConfirm?.(); } finally { onClose?.(); } }),
+          ])
+        ])
+      );
+    }
+
     function App() {
       const [modal, setModal] = React.useState(null);
       React.useEffect(() => {
@@ -318,6 +398,13 @@
         window.addEventListener('react:open-modal', onOpen);
         return () => window.removeEventListener('react:open-modal', onOpen);
       }, []);
+      const [confirm, setConfirm] = React.useState(null);
+      const { actions } = React.useContext(StateContext);
+      const ask = (kind) => {
+        if (kind === 'finalize') setConfirm({ title: 'Finalize?', message: 'This will lock the document.', onConfirm: actions.finalize });
+        if (kind === 'unfinalize') setConfirm({ title: 'Unlock?', message: 'This will unlock the document.', onConfirm: actions.unfinalize });
+        if (kind === 'reset') setConfirm({ title: 'Factory reset?', message: 'This will clear working data.', onConfirm: actions.factoryReset });
+      };
       return React.createElement(ThemeProvider, null,
         React.createElement(StateProvider, null,
           React.createElement(React.Fragment, null,
@@ -329,7 +416,10 @@
             React.createElement(ActionButtons, null),
             React.createElement(DocumentControls, null),
             React.createElement(ExhibitsList, null),
-            modal ? React.createElement(SendVendorModal, { userId: modal.userId, onClose: () => setModal(null) }) : null
+            React.createElement(NotificationsPanel, null),
+            React.createElement(ChatConsole, null),
+            modal ? React.createElement(SendVendorModal, { userId: modal.userId, onClose: () => setModal(null) }) : null,
+            confirm ? React.createElement(ConfirmModal, { title: confirm.title, message: confirm.message, onConfirm: confirm.onConfirm, onClose: () => setConfirm(null) }) : null
           )
         )
       );

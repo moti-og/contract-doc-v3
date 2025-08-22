@@ -43,7 +43,7 @@ Users + roles API (what the UI consumes):
 ```
 
 UI population (users list, role list, auto‑default to user’s role):
-```323:343:server/public/ui/components.js
+```react-entry
 // fetch /api/v1/users and build dropdowns; selected user’s role is applied
 ```
 
@@ -51,7 +51,7 @@ UI population (users list, role list, auto‑default to user’s role):
 - Change role abilities: edit `data/app/users/roles.json`.
 - Change who is who: edit `data/app/users/users.json`.
 - Change button gating: edit `/api/v1/state-matrix` in `server/src/server.js`.
-- Change UI population/labels: `server/public/ui/components.js`.
+- Change UI population/labels: `/ui/components.react.js`.
 - Add role→mode adapter (next): shared helper used by both Web (SuperDoc) and Word (Office.js).
 
 ## 5) Banner (centralized)

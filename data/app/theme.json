@@ -12,5 +12,9 @@
     "border": "#e5e7eb",
     "primary": "#111827",
     "muted": "#6b7280"
+  },
+  "buttons": {
+    "primary": { "bg": "#111827", "fg": "#ffffff", "border": "#111827" },
+    "secondary": { "bg": "#ffffff", "fg": "#111827", "border": "#e5e7eb" }
   }
 }
