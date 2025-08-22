@@ -418,6 +418,12 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     // Send to Vendor (modal)
     add('Send to Vendor', async () => {
       try {
+        if (window.openReactModal) {
+          window.openReactModal('send-vendor', { userId: currentUser });
+          return;
+        }
+      } catch {}
+      try {
         const schemaRes = await fetch(`${API_BASE}/api/v1/ui/modal/send-vendor?userId=${encodeURIComponent(currentUser)}`);
         if (!schemaRes.ok) throw new Error('schema');
         const { schema } = await schemaRes.json();

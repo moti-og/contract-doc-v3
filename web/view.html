@@ -7,6 +7,9 @@
   <!-- SuperDoc styles (local) -->
   <link href="/vendor/superdoc/style.css" rel="stylesheet" />
   <link rel="icon" href="data:,"/>
+  <!-- Preload local React UMD -->
+  <link rel="preload" as="script" href="/vendor/react/react.production.min.js" />
+  <link rel="preload" as="script" href="/vendor/react/react-dom.production.min.js" />
   <style>
     :root { --banner-h: 140px; }
     body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; height: 100vh; }
@@ -23,9 +26,10 @@
   </style>
   <!-- Load local SuperDoc UMD before module init -->
   <script src="/vendor/superdoc/superdoc.umd.min.js"></script>
-  <!-- React UMD for shared UI layer -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- React UMD (local) and React entry (shared) -->
+  <script defer src="/vendor/react/react.production.min.js"></script>
+  <script defer src="/vendor/react/react-dom.production.min.js"></script>
+  <script defer src="/ui/components.react.js"></script>
   <script type="module">
     import { mountSuperdoc } from '/web/superdoc-init.js?v=ui-actions-3';
     import { mountApp } from '/ui/components.js?v=ui-actions-3';
@@ -64,6 +68,7 @@
           }
         });
         mountApp({ rootSelector: '#app-root' });
+        try { if (window.mountReactApp) window.mountReactApp({ rootSelector: '#react-root' }); } catch {}
       } catch (e) {
         const el = document.getElementById('superdoc');
         el.innerHTML = `<div style="padding:16px">Failed to initialize: ${e?.message || e}.<br/>Open <a href="/debug">/debug</a> to verify current document and uploads.</div>`;
@@ -86,6 +91,7 @@
     </div>
     <aside id="pane">
       <div id="app-root"></div>
+      <div id="react-root"></div>
     </aside>
   </div>
 </body>

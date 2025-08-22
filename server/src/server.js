@@ -443,11 +443,10 @@ app.post('/api/v1/factory-reset', (req, res) => {
     if (fs.existsSync(snapDir)) {
       try { fs.rmSync(snapDir, { recursive: true, force: true }); } catch {}
     }
-    // Reset state
+    // Reset state and bump revision so clients resync deterministically
     serverState.isFinal = false;
     serverState.checkedOutBy = null;
-    serverState.lastUpdated = new Date().toISOString();
-    persistState();
+    bumpRevision();
     broadcast({ type: 'factoryReset' });
     // Also emit documentRevert to trigger existing client handlers
     broadcast({ type: 'documentRevert' });

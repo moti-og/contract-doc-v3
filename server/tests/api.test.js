@@ -28,6 +28,20 @@ function fetchJson(path, scheme) {
   });
 }
 
+function fetchText(path) {
+  const url = `${BASE}${path}`;
+  const mod = url.startsWith('https') ? https : http;
+  return new Promise((resolve, reject) => {
+    const req = mod.request(url, { method: 'GET', rejectUnauthorized: false }, (res) => {
+      let data = '';
+      res.on('data', (c) => (data += c));
+      res.on('end', () => resolve({ status: res.statusCode, text: data }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 function postJson(path, body) {
   const url = `${BASE}${path}`;
   const mod = url.startsWith('https') ? https : http;
@@ -81,6 +95,28 @@ describe('API', () => {
     const r = await fetchJson('/api/v1/state-matrix?platform=web&userId=tester');
     expect(r.status).toBe(200);
     expect(r.json.config).toBeTruthy();
+  });
+
+  test('send-vendor modal schema is available', async () => {
+    const r = await fetchJson('/api/v1/ui/modal/send-vendor?userId=tester');
+    expect(r.status).toBe(200);
+    expect(r.json.schema).toBeTruthy();
+    expect(Array.isArray(r.json.schema.fields)).toBe(true);
+  });
+
+  test('vendor React UMD assets are served', async () => {
+    const r1 = await fetchText('/vendor/react/react.production.min.js');
+    expect(r1.status).toBe(200);
+    expect(typeof r1.text).toBe('string');
+    const r2 = await fetchText('/vendor/react/react-dom.production.min.js');
+    expect(r2.status).toBe(200);
+    expect(typeof r2.text).toBe('string');
+  });
+
+  test('react entry is served', async () => {
+    const r = await fetchText('/ui/components.react.js');
+    expect(r.status).toBe(200);
+    expect(r.text.includes('mountReactApp')).toBe(true);
   });
 
   test('checkout/checkin', async () => {
