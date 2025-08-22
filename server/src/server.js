@@ -41,6 +41,7 @@ const serverState = {
   isFinal: false,
   checkedOutBy: null,
   lastUpdated: new Date().toISOString(),
+  revision: 1,
 };
 
 // Load persisted state if available
@@ -51,13 +52,20 @@ try {
     if (typeof saved.isFinal === 'boolean') serverState.isFinal = saved.isFinal;
     if (saved.checkedOutBy === null || typeof saved.checkedOutBy === 'string') serverState.checkedOutBy = saved.checkedOutBy;
     if (typeof saved.lastUpdated === 'string') serverState.lastUpdated = saved.lastUpdated;
+    if (typeof saved.revision === 'number') serverState.revision = saved.revision;
   }
 } catch {}
 
 function persistState() {
   try {
-    fs.writeFileSync(stateFilePath, JSON.stringify({ isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated }, null, 2));
+    fs.writeFileSync(stateFilePath, JSON.stringify({ isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated, revision: serverState.revision }, null, 2));
   } catch {}
+}
+
+function bumpRevision() {
+  serverState.revision = (Number(serverState.revision) || 0) + 1;
+  serverState.lastUpdated = new Date().toISOString();
+  persistState();
 }
 
 // Helpers: users/roles
@@ -96,13 +104,13 @@ function buildBanner({ isFinal, isCheckedOut, isOwner, checkedOutBy }) {
     if (isOwner) return { state: 'checked_out_self', title: 'Checked out by you', message: 'You can edit. Remember to check in.' };
     return { state: 'checked_out_other', title: 'Checked out', message: `Checked out by ${checkedOutBy}` };
   }
-  return { state: 'available', title: 'Available to check out', message: 'No one is editing this document.' };
+  return { state: 'available', title: 'Available to check out', message: 'Redline it up baby!' };
 }
 
 // SSE clients
 const sseClients = new Set();
 function broadcast(event) {
-  const payload = `data: ${JSON.stringify({ documentId: DOCUMENT_ID, ...event, ts: Date.now() })}\n\n`;
+  const payload = `data: ${JSON.stringify({ documentId: DOCUMENT_ID, revision: serverState.revision, ...event, ts: Date.now() })}\n\n`;
   for (const res of sseClients) {
     try {
       res.write(payload);
@@ -142,6 +150,12 @@ app.use('/ui', express.static(sharedUiDir, { fallthrough: true }));
 app.use('/static/vendor', express.static(path.join(publicDir, 'vendor'), { fallthrough: true }));
 // Serve web static assets (helper scripts) under /web
 app.use('/web', express.static(webDir, { fallthrough: true }));
+
+// Prevent caches on JSON APIs to avoid stale state
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
 // WebSocket reverse proxy for collaboration under same HTTPS origin
 const COLLAB_TARGET = process.env.COLLAB_TARGET || 'http://localhost:4002';
@@ -268,6 +282,7 @@ app.get('/api/v1/current-document', (req, res) => {
     filename: 'default.docx',
     filePath: exists ? p : null,
     lastUpdated: serverState.lastUpdated,
+    revision: serverState.revision,
   });
 });
 
@@ -302,12 +317,20 @@ app.get('/api/v1/state-matrix', (req, res) => {
         : { title: 'Draft', message: 'This document is in draft.' }
     },
     banner,
+    // Ordered banners for rendering in sequence on the client
+    banners: (() => {
+      const list = [banner];
+      if (String(derivedRole).toLowerCase() === 'viewer') {
+        list.push({ state: 'view_only', title: 'View Only', message: 'You can look but do not touch!' });
+      }
+      return list;
+    })(),
     checkoutStatus: { isCheckedOut, checkedOutUserId: serverState.checkedOutBy },
     viewerMessage: isCheckedOut
       ? { type: isOwner ? 'info' : 'warning', text: isOwner ? `Checked out by you` : `Checked out by ${serverState.checkedOutBy}` }
       : { type: 'success', text: 'Available for editing' },
   };
-  res.json({ config });
+  res.json({ config, revision: serverState.revision });
 });
 
 // Theme endpoint: returns style tokens for clients (banner colors, etc.)
@@ -581,6 +604,7 @@ app.get('/api/v1/events', (req, res) => {
   try {
     const initial = {
       documentId: DOCUMENT_ID,
+      revision: serverState.revision,
       type: 'hello',
       state: { isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy },
       ts: Date.now(),
@@ -595,17 +619,26 @@ app.get('/api/v1/events', (req, res) => {
   req.on('close', () => { sseClients.delete(res); clearInterval(keepalive); });
 });
 
-// HTTPS preferred; fallback to HTTP if certs missing
+// HTTPS preferred; try Office dev certs, then PFX, else fail (unless ALLOW_HTTP=true)
 function tryCreateHttpsServer() {
   try {
-    // Prefer PFX if available (works without openssl)
+    // 1) Office dev certs (shared with add-in 4000)
+    try {
+      // Lazy require to keep runtime optional
+      const devCerts = require('office-addin-dev-certs');
+      const httpsOptions = devCerts && devCerts.getHttpsServerOptions ? devCerts.getHttpsServerOptions() : null;
+      if (httpsOptions && httpsOptions.key && httpsOptions.cert) {
+        return https.createServer({ key: httpsOptions.key, cert: httpsOptions.cert, ca: httpsOptions.ca }, app);
+      }
+    } catch { /* ignore; may not be installed */ }
+    // 2) PFX if available
     const pfxPath = process.env.SSL_PFX_PATH || path.join(rootDir, 'server', 'config', 'dev-cert.pfx');
     const pfxPass = process.env.SSL_PFX_PASS || 'password';
     if (fs.existsSync(pfxPath)) {
       const opts = { pfx: fs.readFileSync(pfxPath), passphrase: pfxPass };
       return https.createServer(opts, app);
     }
-    // Fallback to PEM key/cert
+    // 3) PEM fallback
     const keyPath = process.env.SSL_KEY_PATH || path.join(rootDir, 'server', 'config', 'dev-key.pem');
     const certPath = process.env.SSL_CERT_PATH || path.join(rootDir, 'server', 'config', 'dev-cert.pem');
     if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
@@ -613,7 +646,8 @@ function tryCreateHttpsServer() {
       return https.createServer(opts, app);
     }
   } catch { /* ignore */ }
-  return null;
+  if (String(process.env.ALLOW_HTTP || '').toLowerCase() === 'true') return null;
+  throw new Error('No HTTPS certificate available. Install Office dev certs or provide server/config/dev-cert.pfx. Set ALLOW_HTTP=true to use HTTP for dev only.');
 }
 
 const httpsServer = tryCreateHttpsServer();
@@ -627,8 +661,8 @@ if (httpsServer) {
 } else {
   serverInstance = http.createServer(app);
   serverInstance.listen(APP_PORT, () => {
-    console.warn(`Dev cert not found. HTTP server running on http://localhost:${APP_PORT}`);
-    console.warn('Set SSL_KEY_PATH and SSL_CERT_PATH or place dev certs under server/config to enable HTTPS.');
+    console.warn(`ALLOW_HTTP=true enabled. HTTP server running on http://localhost:${APP_PORT}`);
+    console.warn('Install Office dev certs (preferred) or place dev-cert.pfx under server/config to enable HTTPS.');
   });
 }
 

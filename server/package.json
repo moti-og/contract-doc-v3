@@ -9,7 +9,8 @@
   "scripts": {
     "test": "jest --config jest.config.js",
     "e2e:install": "npx playwright install --with-deps",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "stress": "powershell -NoProfile -ExecutionPolicy Bypass -File ..\\tools\\scripts\\run-stress-local.ps1 -Iterations 30 -DelayMs 200 -Users user1,user2"
   },
   "keywords": [],
   "author": "",
@@ -18,7 +19,8 @@
     "compression": "^1.8.1",
     "express": "^5.1.0",
     "multer": "^2.0.2",
-    "http-proxy-middleware": "^2.0.6"
+    "http-proxy-middleware": "^2.0.6",
+    "office-addin-dev-certs": "^2.0.3"
   },
   "devDependencies": {
     "jest": "^29.7.0",

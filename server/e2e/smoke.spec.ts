@@ -38,4 +38,13 @@ test.describe('Smoke: web right-pane actions', () => {
       await expect(page.locator('#app-root')).toContainText(/Available to check out|No one is editing/);
     }
   });
+
+  test('viewer shows view-only banner content is present', async ({ page }) => {
+    await page.goto('/view');
+    await page.waitForSelector(pane);
+    // Wait a moment for banner render
+    await page.waitForTimeout(300);
+    // Expect the banner chip text to be rendered (Available/Checked out/Finalized)
+    await expect(page.locator(statusChip)).toBeVisible();
+  });
 });

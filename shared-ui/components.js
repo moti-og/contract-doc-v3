@@ -50,6 +50,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let reconnectAttempt = 0;
   let userSelectEl;
   let statusChipEl;
+  let chipRowEl;
   let userCardNameEl;
   let userRolePillEl;
   let docLinkEl;
@@ -58,6 +59,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let buttonsGrid;
   let themeTokens = null;
   let activeModalEl = null;
+  let lastRevision = 0;
 
   async function renderServerModal(schema, onAction) {
     try { if (activeModalEl) { activeModalEl.remove(); activeModalEl = null; } } catch {}
@@ -214,6 +216,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     ]);
     connectionBadge = el('span', { id: 'conn-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['disconnected']);
     lastEventBadge = el('span', { id: 'last-event-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['last: —']);
+    const resyncBtn = el('button', { class: 'ms-Button', onclick: () => { log('manual resync'); updateUI(); } }, [el('span', { class: 'ms-Button-label' }, ['Resync'])]);
     const userSel = el('select', { onchange: async (e) => { 
       currentUser = e.target.value; 
       try {
@@ -226,7 +229,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       updateUI();
     } });
     userSelectEl = userSel;
-    header.append(connectionBadge, lastEventBadge);
+    header.append(connectionBadge, lastEventBadge, resyncBtn);
 
     // User row: role badge + user dropdown
     userRolePillEl = el('span', { style: { background: '#fde68a', color: '#92400e', border: '1px solid #fbbf24', borderRadius: '999px', padding: '2px 8px', fontSize: '11px', fontWeight: '700' } }, [currentRole.toUpperCase()]);
@@ -239,9 +242,10 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     const docRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
     docLinkEl = el('a', { href: `${API_BASE}/documents/default.docx`, target: '_blank', style: { color: '#2563eb', fontWeight: '600', textDecoration: 'none' } }, ['current.docx']);
     docRow.append(docLinkEl);
-    const chipRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
-    statusChipEl = el('div', { style: { marginTop: '6px', background: '#e0edff', color: '#1e40af', border: '1px solid #c7dbff', borderRadius: '6px', padding: '8px 12px', fontWeight: '600', width: '90%', textAlign: 'center' } }, ['Available for check-out']);
-    chipRow.append(statusChipEl);
+    const chipRow = el('div', { id: 'chip-row', style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' } });
+    chipRowEl = chipRow;
+    statusChipEl = el('div', { style: { marginTop: '6px', background: '#e0edff', color: '#1e40af', border: '1px solid #c7dbff', borderRadius: '6px', padding: '4px 8px', fontWeight: '600', width: '90%', textAlign: 'center' } }, ['Available for check-out']);
+    chipRowEl.append(statusChipEl);
 
     const section = (title) => el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid #eee', borderRadius: '6px', padding: '8px 10px', background: '#fff' } }, [
       el('div', { style: { fontWeight: '600' } }, [title]),
@@ -338,11 +342,20 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         setConnected(true);
         reconnectAttempt = 0;
         log('SSE open');
+        // On fresh open, force a UI refresh to pick up any missed state
+        updateUI();
       };
       sse.onmessage = (ev) => {
         try {
           const payload = JSON.parse(ev.data);
           setLastEvent(payload?.ts || Date.now());
+          // Auto-resync if we detect a revision jump backwards (server restart) or gap
+          const r = Number(payload?.revision || 0);
+          if (r && r !== lastRevision) {
+            if (lastRevision && r < lastRevision) log(`revision restart detected (${lastRevision} -> ${r}), resync`);
+            lastRevision = r;
+            updateUI();
+          }
           if (payload?.documentId && currentDocumentId && payload.documentId !== currentDocumentId) {
             log(`SSE ignored (doc mismatch: ${payload.documentId} != ${currentDocumentId})`);
             return;
@@ -430,7 +443,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
   async function updateUI() {
     try {
-      const { config } = await fetchMatrix();
+      const { config, revision } = await fetchMatrix();
+      if (typeof revision === 'number') lastRevision = revision;
       if (config?.documentId) {
         currentDocumentId = config.documentId;
         const badgeId = 'doc-id-badge';
@@ -443,7 +457,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       }
       // Right-pane banner from server
       if (statusChipEl) {
-        const b = (config && config.banner) ? config.banner : {};
+        let b = (config && config.banner) ? config.banner : {};
         statusChipEl.textContent = b.title && b.message ? `${b.title}: ${b.message}` : (b.title || statusChipEl.textContent);
         const theme = await ensureTheme();
         try {
@@ -455,6 +469,22 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
           }
         } catch {}
       }
+      // Render any server-supplied banners in sequence (no client logic)
+      try {
+        const list = Array.isArray(config?.banners) ? config.banners : [];
+        // Remove previous extras (keep primary)
+        const row = chipRowEl || statusChipEl?.parentElement;
+        if (row) {
+          Array.from(row.querySelectorAll('.extra-banner')).forEach(n => n.remove());
+          for (let i = 1; i < list.length; i++) {
+            const b = list[i] || {};
+            const extraEl = el('div', { class: 'extra-banner', style: { marginTop: '0', background: '#eef2ff', color: '#1e3a8a', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '3px 8px', fontWeight: '600', width: '90%', textAlign: 'center' } }, [
+              (b.title && b.message) ? `${b.title}: ${b.message}` : (b.title || '')
+            ]);
+            row.appendChild(extraEl);
+          }
+        }
+      } catch {}
       if (userCardNameEl) userCardNameEl.textContent = currentUser;
       if (userRolePillEl) userRolePillEl.textContent = (currentRole || 'editor').toUpperCase();
       setEditorModeForRole(currentRole);
