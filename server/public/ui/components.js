@@ -16,6 +16,16 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     return n;
   };
 
+  // Determine backend origin so add-in (4000) hits the server (4001) directly
+  const API_BASE = (() => {
+    try {
+      const src = Array.from(document.scripts).map(s => s.src).find(u => typeof u === 'string' && u.includes('/static/ui/components.js'));
+      if (src) return new URL(src).origin;
+    } catch {}
+    try { return location.origin; } catch {}
+    return 'https://localhost:4001';
+  })();
+
   function detectPlatform() {
     const hasOffice = typeof window.Office !== 'undefined';
     return hasOffice ? 'word' : 'web';
@@ -125,7 +135,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
   async function fetchMatrix() {
     const params = new URLSearchParams({ userRole: currentRole, platform: detectPlatform(), userId: currentUser });
-    const res = await fetch(`/api/v1/state-matrix?${params.toString()}`);
+    const res = await fetch(`${API_BASE}/api/v1/state-matrix?${params.toString()}`);
     if (!res.ok) throw new Error('matrix');
     return res.json();
   }
@@ -155,11 +165,11 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         if (r) { currentRole = r; roleSel.value = r; }
       } catch {}
       log(`user set to ${currentUser}`);
-      try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {}
+      try { await fetch(`${API_BASE}/api/v1/events/client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {}
       updateUI();
     } });
     userSelectEl = userSel;
-    const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, []);
+    const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch(`${API_BASE}/api/v1/events/client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, []);
     roleSelectEl = roleSel;
     header.append(connectionBadge, lastEventBadge, el('span', {}, ['Role: ']), roleSel);
 
@@ -176,7 +186,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
     // Document link and status chip
     const docRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
-    docLinkEl = el('a', { href: '/documents/default.docx', target: '_blank', style: { color: '#2563eb', fontWeight: '600', textDecoration: 'none' } }, ['current.docx']);
+    docLinkEl = el('a', { href: `${API_BASE}/documents/default.docx`, target: '_blank', style: { color: '#2563eb', fontWeight: '600', textDecoration: 'none' } }, ['current.docx']);
     docRow.append(docLinkEl);
     const chipRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
     statusChipEl = el('div', { style: { marginTop: '6px', background: '#e0edff', color: '#1e40af', border: '1px solid #c7dbff', borderRadius: '6px', padding: '8px 12px', fontWeight: '600', width: '90%', textAlign: 'center' } }, ['Available for check-out']);
@@ -206,7 +216,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       const fd = new FormData();
       fd.append('file', file);
       try {
-        await fetch('/api/v1/exhibits/upload', { method: 'POST', body: fd });
+        await fetch(`${API_BASE}/api/v1/exhibits/upload`, { method: 'POST', body: fd });
         log(`exhibit upload OK ${file.name}`);
         await updateExhibits();
       } catch (err) {
@@ -227,7 +237,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     chatBoxEl = el('div', { style: { border: '1px solid #ddd', borderRadius: '6px', padding: '8px', height: '120px', overflow: 'auto', background: '#fff' } }, ["Hi, I'm OG Assist. How can I help you?"]);
     const chatRow = el('div', { style: { display: 'flex', gap: '8px' } });
     chatInputEl = el('input', { type: 'text', placeholder: 'Type a message...', style: { flex: '1', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '4px' } });
-    const chatSend = el('button', { class: 'ms-Button', onclick: async () => { const t = chatInputEl.value.trim(); if (!t) return; chatBoxEl.append(el('div', { style: { marginTop: '6px' } }, [t])); chatInputEl.value=''; try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat', payload: { text: t }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} } }, [el('span', { class: 'ms-Button-label' }, ['Send'])]);
+    const chatSend = el('button', { class: 'ms-Button', onclick: async () => { const t = chatInputEl.value.trim(); if (!t) return; chatBoxEl.append(el('div', { style: { marginTop: '6px' } }, [t])); chatInputEl.value=''; try { await fetch(`${API_BASE}/api/v1/events/client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat', payload: { text: t }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} } }, [el('span', { class: 'ms-Button-label' }, ['Send'])]);
     chatRow.append(chatInputEl, chatSend);
     assistantSection.append(chatBoxEl, chatRow);
 
@@ -255,7 +265,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   function connectSSE() {
     try {
       if (sse) { try { sse.close(); } catch {} }
-      sse = new EventSource('/api/v1/events');
+      sse = new EventSource(`${API_BASE}/api/v1/events`);
       sse.onopen = () => {
         setConnected(true);
         reconnectAttempt = 0;
@@ -270,7 +280,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
             return;
           }
           log(`SSE ${ev.data}`);
-          if (payload?.type === 'finalize' || payload?.type === 'documentUpload' || payload?.type === 'documentRevert' || payload?.type === 'checkout' || payload?.type === 'checkin') {
+          if (payload?.type === 'finalize' || payload?.type === 'documentUpload' || payload?.type === 'documentRevert' || payload?.type === 'checkout' || payload?.type === 'checkin' || payload?.type === 'overrideCheckout' || payload?.type === 'checkoutCancel') {
             updateUI();
           }
           if (payload?.type === 'exhibitUpload') {
@@ -308,24 +318,24 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     if (isWord()) {
       const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
       add('Open New Document', () => filePick.click(), true);
-      add('View Latest', () => openWordDocumentFromUrl('/documents/canonical/default.docx'), true);
+      add('View Latest', () => openWordDocumentFromUrl(`${API_BASE}/documents/canonical/default.docx`), true);
       filePick.onchange = async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const buf = await f.arrayBuffer(); const b64 = arrayBufferToBase64(buf); await openWordDocumentFromBase64(b64); log(`Opened ${f.name}`); } catch (err) { log(`open file ERR ${err?.message || err}`); } finally { e.target.value = ''; } };
       if (buttonsGrid) buttonsGrid.append(filePick); else buttonsRow.append(filePick);
     } else {
       const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
       add('Open New Document', () => filePick.click(), true);
-      add('View Latest', () => window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/canonical/default.docx' } })), true);
+      add('View Latest', () => window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: `${API_BASE}/documents/canonical/default.docx` } })), true);
       filePick.onchange = async (e) => { const f = e.target.files?.[0]; if (!f) return; try { window.dispatchEvent(new CustomEvent('superdoc:open-file', { detail: { file: f } })); log(`Opened ${f.name} in web`); } catch (err) { log(`open file ERR ${err?.message || err}`); } finally { e.target.value = ''; } };
       if (buttonsGrid) buttonsGrid.append(filePick); else buttonsRow.append(filePick);
     }
-    add('Finalize', async () => { try { await fetch('/api/v1/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('finalize OK'); await updateUI(); } catch(e){ log(`finalize ERR ${e.message}`);} }, !!config.buttons.finalizeBtn);
-    add('Unfinalize', async () => { try { await fetch('/api/v1/unfinalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('unfinalize OK'); await updateUI(); } catch(e){ log(`unfinalize ERR ${e.message}`);} }, !!config.buttons.unfinalizeBtn);
-    add('Checkout', async () => { try { await fetch('/api/v1/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkout OK'); await updateUI(); } catch(e){ log(`checkout ERR ${e.message}`);} }, !!config.buttons.checkoutBtn);
-    add('Override Checkout', async () => { try { await fetch('/api/v1/checkout/override', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser, userRole: currentRole }) }); log('override OK'); await updateUI(); } catch(e){ log(`override ERR ${e.message}`);} }, !!config.buttons.overrideBtn);
-    add('Checkin', async () => { try { await fetch('/api/v1/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
-    add('Cancel Checkout', async () => { try { await fetch('/api/v1/checkout/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('cancel OK'); await updateUI(); } catch(e){ log(`cancel ERR ${e.message}`);} }, !!config.buttons.cancelBtn);
-    add('Revert to Canonical', async () => { try { await doPost('/api/v1/document/revert'); log('revert OK'); } catch(e){ log(`revert ERR ${e.message}`);} }, true);
-    add('Snapshot', async () => { try { const r = await fetch('/api/v1/document/snapshot', { method: 'POST' }); if (!r.ok) throw new Error('snapshot'); const j = await r.json(); log(`snapshot OK ${j.path || ''}`); } catch(e){ log(`snapshot ERR ${e.message}`);} }, true);
+    add('Finalize', async () => { try { await fetch(`${API_BASE}/api/v1/finalize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('finalize OK'); await updateUI(); } catch(e){ log(`finalize ERR ${e.message}`);} }, !!config.buttons.finalizeBtn);
+    add('Unfinalize', async () => { try { await fetch(`${API_BASE}/api/v1/unfinalize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('unfinalize OK'); await updateUI(); } catch(e){ log(`unfinalize ERR ${e.message}`);} }, !!config.buttons.unfinalizeBtn);
+    add('Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkout OK'); await updateUI(); } catch(e){ log(`checkout ERR ${e.message}`);} }, !!config.buttons.checkoutBtn);
+    add('Override Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/override`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser, userRole: currentRole }) }); log('override OK'); await updateUI(); } catch(e){ log(`override ERR ${e.message}`);} }, !!config.buttons.overrideBtn);
+    add('Checkin', async () => { try { await fetch(`${API_BASE}/api/v1/checkin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
+    add('Cancel Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('cancel OK'); await updateUI(); } catch(e){ log(`cancel ERR ${e.message}`);} }, !!config.buttons.cancelBtn);
+    add('Revert to Canonical', async () => { try { await doPost(`${API_BASE}/api/v1/document/revert`); log('revert OK'); } catch(e){ log(`revert ERR ${e.message}`);} }, true);
+    add('Snapshot', async () => { try { const r = await fetch(`${API_BASE}/api/v1/document/snapshot`, { method: 'POST' }); if (!r.ok) throw new Error('snapshot'); const j = await r.json(); log(`snapshot OK ${j.path || ''}`); } catch(e){ log(`snapshot ERR ${e.message}`);} }, true);
   }
 
   async function updateUI() {
@@ -367,7 +377,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
   async function updateExhibits() {
     try {
-      const res = await fetch('/api/v1/exhibits');
+      const res = await fetch(`${API_BASE}/api/v1/exhibits`);
       if (!res.ok) throw new Error('exhibits');
       const j = await res.json();
       exhibitsList.innerHTML = '';
@@ -388,7 +398,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   // Populate users dynamically
   (async () => {
     try {
-      const r = await fetch('/api/v1/users');
+      const r = await fetch(`${API_BASE}/api/v1/users`);
       const j = await r.json();
       const items = Array.isArray(j.items) ? j.items : [];
       const rolesObj = j.roles || {};
