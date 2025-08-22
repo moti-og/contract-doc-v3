@@ -55,16 +55,18 @@ switch ($Action) {
     Stop-Port 4000; Stop-Port 4001; Stop-Port 4002;
     $c=Start-Collab; Start-Sleep -Seconds 1;
     $b=Start-Backend; Start-Sleep -Seconds 1;
+    $d=Start-Dev; Start-Sleep -Seconds 1;
     $a=Start-AddinSideload; Start-Sleep -Seconds 1;
-    Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Addin PID: $($a.Id)";
+    Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Dev PID: $($d.Id)  Addin PID: $($a.Id)";
     Show-Status
   }
   'restart'  {
     Stop-Port 4000; Stop-Port 4001; Stop-Port 4002;
     $c=Start-Collab; Start-Sleep -Seconds 1;
     $b=Start-Backend; Start-Sleep -Seconds 1;
+    $d=Start-Dev; Start-Sleep -Seconds 1;
     $a=Start-AddinSideload; Start-Sleep -Seconds 1;
-    Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Addin PID: $($a.Id)";
+    Write-Host "Collab PID: $($c.Id)  Backend PID: $($b.Id)  Dev PID: $($d.Id)  Addin PID: $($a.Id)";
     Show-Status
   }
   'sideload' { Start-AddinSideload }
