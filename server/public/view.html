@@ -108,7 +108,25 @@
         let superdocInstance = null;
         const mount = (doc) => {
           currentDoc = doc;
-          superdocInstance = mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: currentMode, pagination: true, rulers: true, role: currentMode === 'viewing' ? 'viewer' : (currentMode === 'suggesting' ? 'suggester' : 'editor') });
+          superdocInstance = mountSuperdoc({
+            selector: '#superdoc',
+            toolbar: '#superdoc-toolbar',
+            document: doc,
+            documentMode: currentMode,
+            pagination: true,
+            rulers: true,
+            role: currentMode === 'viewing' ? 'viewer' : (currentMode === 'suggesting' ? 'suggester' : 'editor'),
+            // Enable SuperDoc modules; comments enables suggestion affordances
+            modules: {
+              comments: {
+                readOnly: currentMode === 'viewing',
+                allowResolve: true,
+              },
+              toolbar: {
+                responsiveToContainer: true,
+              }
+            }
+          });
           return superdocInstance;
         };
         const editorCol = document.getElementById('editor-col');
