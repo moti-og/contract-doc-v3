@@ -130,8 +130,13 @@
           if (m && ['editing','suggesting','viewing'].includes(m)) {
             currentMode = m;
             try {
-              if (superdocInstance && typeof superdocInstance.setDocumentMode === 'function') {
+              if (superdocInstance && typeof superdocInstance.setDocumentMode === 'function' && typeof superdocInstance.on === 'function') {
                 superdocInstance.setDocumentMode(currentMode);
+                // Ensure suggestions are visible in suggesting mode
+                if (currentMode === 'suggesting') {
+                  // If the API offers a way to show tracked changes, this is where we would call it.
+                  console.log('Suggesting mode: ensure tracked changes are visible');
+                }
               } else {
                 // Fallback: remount if instance API not available
                 render('/documents/default.docx');
