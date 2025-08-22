@@ -21,6 +21,7 @@ const SSE_RETRY_MS = (() => {
 const rootDir = path.resolve(__dirname, '..', '..');
 const publicDir = path.join(rootDir, 'server', 'public');
 const dataAppDir = path.join(rootDir, 'data', 'app');
+const dataUsersDir = path.join(dataAppDir, 'users');
 const dataWorkingDir = path.join(rootDir, 'data', 'working');
 const canonicalDocumentsDir = path.join(dataAppDir, 'documents');
 const canonicalExhibitsDir = path.join(dataAppDir, 'exhibits');
@@ -155,6 +156,21 @@ app.get('/documents/default.docx', (req, res) => {
   res.sendFile(p);
 });
 
+// Explicit canonical/working document endpoints
+app.get('/documents/canonical/default.docx', (req, res) => {
+  const p = path.join(canonicalDocumentsDir, 'default.docx');
+  if (!fs.existsSync(p)) return res.status(404).send('canonical default.docx not found');
+  res.setHeader('Content-Disposition', 'inline; filename="default.docx"');
+  res.sendFile(p);
+});
+
+app.get('/documents/working/default.docx', (req, res) => {
+  const p = path.join(workingDocumentsDir, 'default.docx');
+  if (!fs.existsSync(p)) return res.status(404).send('working default.docx not found');
+  res.setHeader('Content-Disposition', 'inline; filename="default.docx"');
+  res.sendFile(p);
+});
+
 // Serve canonical exhibits
 app.get('/exhibits/:name', (req, res) => {
   const w = path.join(workingExhibitsDir, req.params.name);
@@ -180,6 +196,22 @@ app.get('/api/v1/health', (req, res) => {
   res.json({ ok: true, superdoc: SUPERDOC_BASE_URL });
 });
 
+app.get('/api/v1/users', (req, res) => {
+  try {
+    const up = path.join(dataUsersDir, 'users.json');
+    const rp = path.join(dataUsersDir, 'roles.json');
+    const users = fs.existsSync(up) ? JSON.parse(fs.readFileSync(up, 'utf8')) : [];
+    const roles = fs.existsSync(rp) ? JSON.parse(fs.readFileSync(rp, 'utf8')) : {};
+    const norm = (Array.isArray(users) ? users : []).map(u => {
+      if (typeof u === 'string') return { id: u, label: u, role: 'editor' };
+      return { id: u.id || u.label || 'user', label: u.label || u.id, role: u.role || 'editor' };
+    });
+    return res.json({ items: norm, roles });
+  } catch (e) {
+    return res.json({ items: [ { id: 'user1', label: 'user1', role: 'editor' } ], roles: { editor: {} } });
+  }
+});
+
 app.get('/api/v1/current-document', (req, res) => {
   const p = resolveDefaultDocPath();
   const exists = fs.existsSync(p);
@@ -193,19 +225,26 @@ app.get('/api/v1/current-document', (req, res) => {
 
 app.get('/api/v1/state-matrix', (req, res) => {
   const { userRole = 'editor', platform = 'web', userId = 'user1' } = req.query;
+  // Load role map to compute permissions
+  let roleMap = {};
+  try {
+    const rp = path.join(dataUsersDir, 'roles.json');
+    if (fs.existsSync(rp)) roleMap = JSON.parse(fs.readFileSync(rp, 'utf8')) || {};
+  } catch {}
   const isCheckedOut = !!serverState.checkedOutBy;
   const isOwner = serverState.checkedOutBy === userId;
   const canWrite = !isCheckedOut || isOwner;
+  const rolePerm = roleMap[userRole] || {};
   const config = {
     documentId: DOCUMENT_ID,
     buttons: {
       replaceDefaultBtn: true,
       compileBtn: true,
       approvalsBtn: true,
-      finalizeBtn: userRole === 'editor' && !serverState.isFinal && canWrite,
-      unfinalizeBtn: userRole === 'editor' && serverState.isFinal && canWrite,
-      checkoutBtn: !isCheckedOut,
-      checkinBtn: isOwner,
+      finalizeBtn: !!rolePerm.finalize && !serverState.isFinal && canWrite,
+      unfinalizeBtn: !!rolePerm.unfinalize && serverState.isFinal && canWrite,
+      checkoutBtn: !!rolePerm.checkout && !isCheckedOut,
+      checkinBtn: !!rolePerm.checkin && isOwner,
     },
     finalize: { isFinal: serverState.isFinal },
     checkoutStatus: { isCheckedOut, checkedOutUserId: serverState.checkedOutBy },

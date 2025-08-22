@@ -54,12 +54,12 @@
       text-align: center;
       text-shadow: 0 1px 1px rgba(0,0,0,0.25);
     }
-    #layout { display: flex; height: calc(100vh - var(--banner-h)); }
-    #editor-col { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-    #superdoc-toolbar { border-bottom: 1px solid #ddd; }
-    #superdoc { flex: 1; min-height: 0; }
-    #pane { width: 360px; max-width: 420px; border-left: 1px solid #eee; display: flex; flex-direction: column; padding-top: 20px; }
-    #app-root { padding: 8px 12px; overflow: auto; }
+    #layout { position: relative; display: flex; height: calc(100vh - var(--banner-h)); }
+    #editor-col { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    #superdoc-toolbar { position: relative; z-index: 1; border-bottom: 1px solid #ddd; }
+    #superdoc { position: relative; z-index: 1; flex: 1; min-height: 0; }
+    #pane { position: relative; z-index: 10; width: 360px; max-width: 420px; border-left: 1px solid #eee; display: flex; flex-direction: column; padding-top: 20px; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.08); }
+    #app-root { padding: 8px 12px; overflow: auto; background: #fff; }
   </style>
   <!-- Load local SuperDoc UMD before module init -->
   <script src="/static/vendor/superdoc/superdoc.umd.min.js"></script>
@@ -67,8 +67,8 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script type="module">
-    import { mountSuperdoc } from '/static/superdoc-init.js';
-    import { mountApp } from '/static/ui/components.js';
+    import { mountSuperdoc } from '/static/superdoc-init.js?v=ui-actions-3';
+    import { mountApp } from '/static/ui/components.js?v=ui-actions-3';
     window.addEventListener('load', async () => {
       try {
         console.log('SuperDoc globals', {
@@ -92,7 +92,34 @@
           console.warn('Collab probe failed', e);
         }
 
-        mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: '/documents/default.docx', documentMode: 'editing', pagination: true, rulers: true });
+        // Mount SuperDoc with the default document URL
+        const mount = (doc) => mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: 'editing', pagination: true, rulers: true });
+        const editorCol = document.getElementById('editor-col');
+        const render = (doc) => {
+          console.log('Render SuperDoc with', doc);
+          // Replace toolbar/editor nodes entirely to guarantee a clean mount
+          const oldToolbar = document.getElementById('superdoc-toolbar');
+          const oldContainer = document.getElementById('superdoc');
+          const newToolbar = document.createElement('div'); newToolbar.id = 'superdoc-toolbar';
+          const newContainer = document.createElement('div'); newContainer.id = 'superdoc';
+          newContainer.style.flex = '1';
+          oldToolbar?.replaceWith(newToolbar);
+          oldContainer?.replaceWith(newContainer);
+          // Normalize URL to absolute
+          if (typeof doc === 'string') {
+            try { doc = new URL(doc, location.origin).href; } catch {}
+          }
+          mount(doc);
+        };
+        // Initial load
+        render('/documents/default.docx');
+        // Listen for UI requests to open other docs
+        window.addEventListener('superdoc:open-url', (e) => {
+          try { render(e.detail?.url || '/documents/default.docx'); } catch(err) { console.warn('open-url failed', err); }
+        });
+        window.addEventListener('superdoc:open-file', (e) => {
+          try { const f = e.detail?.file; if (f) render(f); } catch(err) { console.warn('open-file failed', err); }
+        });
         // Mount shared UI in footer area
         mountApp({ rootSelector: '#app-root' });
       } catch (e) {
