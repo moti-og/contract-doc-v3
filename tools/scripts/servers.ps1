@@ -17,7 +17,8 @@ function Stop-Port([int]$Port) {
 
 function Start-Backend() {
   $root = Split-Path -Parent $PSCommandPath | Split-Path -Parent | Split-Path -Parent
-  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","$env:SUPERDOC_BASE_URL='http://localhost:4002'; cd '$root'; node server/src/server.js" -WindowStyle Minimized -PassThru
+  $pfx = "$root\server\config\dev-cert.pfx"
+  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","$env:SUPERDOC_BASE_URL='http://localhost:4002'; if (Test-Path '$pfx') { $env:SSL_PFX_PATH='$pfx'; $env:SSL_PFX_PASS='password' }; cd '$root'; node server/src/server.js" -WindowStyle Minimized -PassThru
 }
 
 function Start-Dev() {
