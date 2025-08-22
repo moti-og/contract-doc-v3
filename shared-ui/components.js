@@ -19,7 +19,9 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   // Determine backend origin so add-in (4000) hits the server (4001) directly
   const API_BASE = (() => {
     try {
-      const src = Array.from(document.scripts).map(s => s.src).find(u => typeof u === 'string' && u.includes('/static/ui/components.js'));
+      const src = Array.from(document.scripts)
+        .map(s => s.src)
+        .find(u => typeof u === 'string' && /(^|\/)components\.js(\?|$)/.test(u));
       if (src) return new URL(src).origin;
     } catch {}
     try { return location.origin; } catch {}
@@ -95,8 +97,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         try {
           if (typeof onAction === 'function') await onAction(values, a.id);
         } finally {
-          if (a.id !== 'save') { try { overlay.remove(); activeModalEl = null; } catch {} }
-          else { try { overlay.remove(); activeModalEl = null; } catch {} }
+          try { overlay.remove(); activeModalEl = null; } catch {}
         }
       } }, [el('span', { class: 'ms-Button-label' }, [a.label || a.id])]);
       if (a.variant === 'primary') {
@@ -116,7 +117,6 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   function getModeForRole(role) {
     const r = (role || '').toLowerCase();
     if (r === 'viewer') return 'viewing';
-    // Map suggestor and vendor to suggesting
     if (r === 'suggestor' || r === 'vendor') return 'suggesting';
     return 'editing';
   }
@@ -522,5 +522,6 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   })();
   updateExhibits();
 }
+
 
 

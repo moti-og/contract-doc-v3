@@ -16,59 +16,15 @@
   <script type="module">
     const el = sel => document.querySelector(sel);
     const pretty = obj => JSON.stringify(obj, null, 2);
-
     async function fetchJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(url); return r.json(); }
-
-    async function loadCurrent() {
-      const j = await fetchJSON('/api/v1/current-document');
-      el('#currentDoc').textContent = pretty(j);
-    }
-
-    async function loadMatrix() {
-      const role = el('#role').value; const platform = el('#platform').value; const userId = el('#user').value;
-      const j = await fetchJSON(`/api/v1/state-matrix?platform=${encodeURIComponent(platform)}&userId=${encodeURIComponent(userId)}`);
-      el('#matrix').textContent = pretty(j);
-    }
-
-    async function loadExhibits() {
-      const j = await fetchJSON('/api/v1/exhibits');
-      el('#exhibits').textContent = pretty(j);
-    }
-
-    function connectSSE() {
-      const s = new EventSource('/api/v1/events');
-      s.onmessage = (ev) => { const log = el('#sse'); log.textContent += `\n${ev.data}`; log.scrollTop = log.scrollHeight; };
-      s.onerror = () => { const log = el('#sse'); log.textContent += '\n[error]'; };
-    }
-
-    async function uploadDefault(ev) {
-      ev.preventDefault();
-      const f = el('#defaultFile').files?.[0]; if (!f) return;
-      const fd = new FormData(); fd.append('file', f, 'default.docx');
-      await fetch('/api/v1/document/upload', { method: 'POST', body: fd });
-      loadCurrent();
-    }
-
-    async function revertDefault() {
-      await fetch('/api/v1/document/revert', { method: 'POST' });
-      loadCurrent();
-    }
-
-    async function uploadExhibit(ev) {
-      ev.preventDefault();
-      const f = el('#exhibitFile').files?.[0]; if (!f) return;
-      const fd = new FormData(); fd.append('file', f, f.name);
-      await fetch('/api/v1/exhibits/upload', { method: 'POST', body: fd });
-      loadExhibits();
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      connectSSE(); loadCurrent(); loadMatrix(); loadExhibits();
-      el('#refreshMatrix').addEventListener('click', loadMatrix);
-      el('#uploadDefaultForm').addEventListener('submit', uploadDefault);
-      el('#revertDefault').addEventListener('click', revertDefault);
-      el('#uploadExhibitForm').addEventListener('submit', uploadExhibit);
-    });
+    async function loadCurrent() { const j = await fetchJSON('/api/v1/current-document'); el('#currentDoc').textContent = pretty(j); }
+    async function loadMatrix() { const role = el('#role').value; const platform = el('#platform').value; const userId = el('#user').value; const j = await fetchJSON(`/api/v1/state-matrix?platform=${encodeURIComponent(platform)}&userId=${encodeURIComponent(userId)}`); el('#matrix').textContent = pretty(j); }
+    async function loadExhibits() { const j = await fetchJSON('/api/v1/exhibits'); el('#exhibits').textContent = pretty(j); }
+    function connectSSE() { const s = new EventSource('/api/v1/events'); s.onmessage = (ev) => { const log = el('#sse'); log.textContent += `\n${ev.data}`; log.scrollTop = log.scrollHeight; }; s.onerror = () => { const log = el('#sse'); log.textContent += '\n[error]'; }; }
+    async function uploadDefault(ev) { ev.preventDefault(); const f = el('#defaultFile').files?.[0]; if (!f) return; const fd = new FormData(); fd.append('file', f, 'default.docx'); await fetch('/api/v1/document/upload', { method: 'POST', body: fd }); loadCurrent(); }
+    async function revertDefault() { await fetch('/api/v1/document/revert', { method: 'POST' }); loadCurrent(); }
+    async function uploadExhibit(ev) { ev.preventDefault(); const f = el('#exhibitFile').files?.[0]; if (!f) return; const fd = new FormData(); fd.append('file', f, f.name); await fetch('/api/v1/exhibits/upload', { method: 'POST', body: fd }); loadExhibits(); }
+    window.addEventListener('DOMContentLoaded', () => { connectSSE(); loadCurrent(); loadMatrix(); loadExhibits(); el('#refreshMatrix').addEventListener('click', loadMatrix); el('#uploadDefaultForm').addEventListener('submit', uploadDefault); el('#revertDefault').addEventListener('click', revertDefault); el('#uploadExhibitForm').addEventListener('submit', uploadExhibit); });
   </script>
 </head>
 <body>
@@ -116,4 +72,5 @@
   <p><a href="/view" target="_blank">Open Editor View</a></p>
 </body>
 </html>
+
 
