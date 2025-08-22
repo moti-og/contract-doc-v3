@@ -14,11 +14,11 @@
 1) User clicks “Send to Vendor”.
 2) Modal opens (standard modal style):
    - Field 1 — From (text): pre‑populated with the current user’s label; editable
-   - Field 2 — Message (textarea): required; max 200 characters; live character counter
+   - Field 2 — Message (textarea): optional; max 200 characters; live character counter
    - Field 3 — Vendor name (text): pre‑populated with `Moti's Builders`; editable
    - Primary button: “Send to Vendor” (enabled when validation passes)
    - Secondary: “Cancel”
-3) On submit, show a confirmation modal: “Message sent to {vendorName}.” with Close.
+3) On submit, show a confirmation modal: “You have just sent a link to this contract to {vendorName}.” with Close.
 
 ## Validation
 - From: non‑empty
