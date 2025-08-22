@@ -6,7 +6,7 @@
 - Outcomes:
   - Web reliably starts with a non-empty document or shows an actionable retry.
   - Opening a document on one platform initializes/refreshes the other to the same document.
-- Non‑goals (do not rebuild):
+- Non‑goals: Rebuild everything. AKA do not rebuild unless you have to, and ask the user to confirm before you simply recreate something:
   - We will use the existing initialization flows. Do not rewrite them; harden and instrument them. Only replace/delete if a new approach is measurably simpler and more reliable and passes acceptance criteria.
   - Reuse existing hooks and endpoints (`superdoc:open-url`, `/documents/default.docx`, SSE). The work here is to diagnose and fix flakiness, add retries/backoff, and improve UX/telemetry—not to create a new loader.
   - Deletion rule: keep → fix → (optionally) run a side‑by‑side behind a flag → remove legacy only after bake‑in, benchmarks (TTFD, error rate), and a rollback path exist.
