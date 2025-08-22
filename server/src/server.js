@@ -58,6 +58,34 @@ function persistState() {
   } catch {}
 }
 
+// Helpers: users/roles
+function loadUsers() {
+  try {
+    const up = path.join(dataUsersDir, 'users.json');
+    if (!fs.existsSync(up)) return [];
+    const users = JSON.parse(fs.readFileSync(up, 'utf8'));
+    return Array.isArray(users) ? users : [];
+  } catch { return []; }
+}
+function loadRoleMap() {
+  try {
+    const rp = path.join(dataUsersDir, 'roles.json');
+    if (!fs.existsSync(rp)) return {};
+    return JSON.parse(fs.readFileSync(rp, 'utf8')) || {};
+  } catch { return {}; }
+}
+function getUserRole(userId) {
+  const users = loadUsers();
+  for (const u of users) {
+    if (typeof u === 'string') {
+      if (u === userId) return 'editor';
+    } else if (u && (u.id === userId || u.label === userId)) {
+      return u.role || 'editor';
+    }
+  }
+  return 'editor';
+}
+
 // SSE clients
 const sseClients = new Set();
 function broadcast(event) {
@@ -224,17 +252,14 @@ app.get('/api/v1/current-document', (req, res) => {
 });
 
 app.get('/api/v1/state-matrix', (req, res) => {
-  const { userRole = 'editor', platform = 'web', userId = 'user1' } = req.query;
-  // Load role map to compute permissions
-  let roleMap = {};
-  try {
-    const rp = path.join(dataUsersDir, 'roles.json');
-    if (fs.existsSync(rp)) roleMap = JSON.parse(fs.readFileSync(rp, 'utf8')) || {};
-  } catch {}
+  const { platform = 'web', userId = 'user1' } = req.query;
+  // Derive role from users.json
+  const derivedRole = getUserRole(userId);
+  const roleMap = loadRoleMap();
   const isCheckedOut = !!serverState.checkedOutBy;
   const isOwner = serverState.checkedOutBy === userId;
   const canWrite = !isCheckedOut || isOwner;
-  const rolePerm = roleMap[userRole] || {};
+  const rolePerm = roleMap[derivedRole] || {};
   const config = {
     documentId: DOCUMENT_ID,
     buttons: {
@@ -374,14 +399,9 @@ app.post('/api/v1/checkout/cancel', (req, res) => {
 // Override checkout (admin/editor capability): forcefully take ownership
 app.post('/api/v1/checkout/override', (req, res) => {
   const userId = req.body?.userId || 'user1';
-  const userRole = req.body?.userRole || 'editor';
-  // Load role permissions for safety
-  let roleMap = {};
-  try {
-    const rp = path.join(dataUsersDir, 'roles.json');
-    if (fs.existsSync(rp)) roleMap = JSON.parse(fs.readFileSync(rp, 'utf8')) || {};
-  } catch {}
-  const canOverride = !!(roleMap[userRole] && roleMap[userRole].override);
+  const derivedRole = getUserRole(userId);
+  const roleMap = loadRoleMap();
+  const canOverride = !!(roleMap[derivedRole] && roleMap[derivedRole].override);
   if (!canOverride) return res.status(403).json({ error: 'Forbidden' });
   // Allow override only when someone else has checkout
   if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
@@ -404,7 +424,8 @@ app.post('/api/v1/checkout/override', (req, res) => {
 
 // Client-originated events (prototype): accept and rebroadcast for parity
 app.post('/api/v1/events/client', (req, res) => {
-  const { type = 'clientEvent', payload = {}, userId = 'user1', role = 'editor', platform = 'web' } = req.body || {};
+  const { type = 'clientEvent', payload = {}, userId = 'user1', platform = 'web' } = req.body || {};
+  const role = getUserRole(userId);
   broadcast({ type, payload, userId, role, platform });
   res.json({ ok: true });
 });

@@ -47,8 +47,6 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let lastEventBadge;
   let reconnectAttempt = 0;
   let userSelectEl;
-  let roleSelectEl;
-  let actionsSelectEl;
   let statusChipEl;
   let userCardNameEl;
   let userRolePillEl;
@@ -70,14 +68,11 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     if (detectPlatform() === 'web') {
       try { window.dispatchEvent(new CustomEvent('superdoc:set-mode', { detail: { mode } })); } catch {}
     } else if (isWord()) {
-      // Best-effort: try to hint mode in Word; APIs vary by requirement set, so guard everything
       try {
         Word.run(async (context) => {
-          // Suggesting: attempt to enable track changes via built-in command
           if (mode === 'suggesting') {
             try { Office.context.ui.displayDialogAsync && console.log('Suggesting mode requested'); } catch {}
           }
-          // Viewing: we could protect the doc; leave as a no-op prototype for now
           await context.sync();
         });
       } catch {}
@@ -96,7 +91,6 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       if (typeof Office === 'undefined') return false;
       const host = Office?.context?.host || Office?.HostType?.Word;
       if (typeof host === 'string') return host.toLowerCase() === 'word';
-      // Fallback: if Office exists in taskpane, assume Word host
       return true;
     } catch {
       return false;
@@ -114,7 +108,6 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   async function openWordDocumentFromBase64(base64) {
     if (!isWord()) return;
     await Word.run(async (context) => {
-      // Replace current document contents with the provided DOCX
       context.document.body.insertFileFromBase64(base64, Word.InsertLocation.replace);
       await context.sync();
     });
@@ -134,7 +127,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   }
 
   async function fetchMatrix() {
-    const params = new URLSearchParams({ userRole: currentRole, platform: detectPlatform(), userId: currentUser });
+    const params = new URLSearchParams({ platform: detectPlatform(), userId: currentUser });
     const res = await fetch(`${API_BASE}/api/v1/state-matrix?${params.toString()}`);
     if (!res.ok) throw new Error('matrix');
     return res.json();
@@ -147,33 +140,28 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
   function ensureDom() {
     if (initialized) return;
-    // Layout container (right-side pane)
     container = el('div', { id: 'ui-container', style: { display: 'flex', flexDirection: 'column', gap: '12px' } });
 
     const header = el('div', { style: { padding: '8px 0', fontWeight: '600', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #eee' } }, [
       `Shared UI — Platform: ${detectPlatform()}`,
     ]);
-    // Connection + last event badges
     connectionBadge = el('span', { id: 'conn-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['disconnected']);
     lastEventBadge = el('span', { id: 'last-event-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['last: —']);
     const userSel = el('select', { onchange: async (e) => { 
       currentUser = e.target.value; 
-      // When user changes, default the role to the user's configured role if present
       try {
         const opt = e.target.selectedOptions?.[0];
         const r = opt?.getAttribute('data-role');
-        if (r) { currentRole = r; roleSel.value = r; }
+        if (r) { currentRole = r; if (userRolePillEl) userRolePillEl.textContent = r.toUpperCase(); }
       } catch {}
       log(`user set to ${currentUser}`);
-      try { await fetch(`${API_BASE}/api/v1/events/client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {}
+      try { await fetch(`${API_BASE}/api/v1/events/client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'userChange', payload: { userId: currentUser }, userId: currentUser, platform: detectPlatform() }) }); } catch {}
       updateUI();
     } });
     userSelectEl = userSel;
-    const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch(`${API_BASE}/api/v1/events/client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, []);
-    roleSelectEl = roleSel;
-    header.append(connectionBadge, lastEventBadge, el('span', {}, ['Role: ']), roleSel);
+    header.append(connectionBadge, lastEventBadge);
 
-    // User row below role selector: name, role pill, and switch user menu
+    // User row: name, fixed role pill, and switch user menu
     userCardNameEl = el('div', { style: { fontWeight: '600' } }, [currentUser]);
     userRolePillEl = el('span', { style: { marginLeft: '8px', background: '#fde68a', color: '#92400e', border: '1px solid #fbbf24', borderRadius: '999px', padding: '2px 6px', fontSize: '11px', fontWeight: '700' } }, [currentRole.toUpperCase()]);
     const userRow = el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%' } }, [
@@ -184,7 +172,6 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     ]);
     header.append(userRow);
 
-    // Document link and status chip
     const docRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
     docLinkEl = el('a', { href: `${API_BASE}/documents/default.docx`, target: '_blank', style: { color: '#2563eb', fontWeight: '600', textDecoration: 'none' } }, ['current.docx']);
     docRow.append(docLinkEl);
@@ -192,20 +179,16 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     statusChipEl = el('div', { style: { marginTop: '6px', background: '#e0edff', color: '#1e40af', border: '1px solid #c7dbff', borderRadius: '6px', padding: '8px 12px', fontWeight: '600', width: '90%', textAlign: 'center' } }, ['Available for check-out']);
     chipRow.append(statusChipEl);
 
-    // Section helper
     const section = (title) => el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid #eee', borderRadius: '6px', padding: '8px 10px', background: '#fff' } }, [
       el('div', { style: { fontWeight: '600' } }, [title]),
     ]);
 
-    // User card (name + role pill + simple badges)
     const card = section('');
     card.firstChild.remove();
     const cardInner = el('div', { style: { background: '#fff7db', border: '1px solid #f5e3a3', borderRadius: '8px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' } });
-    // Buttons grid container (2 columns on narrow panes)
     buttonsGrid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '8px' } });
     cardInner.append(buttonsGrid);
     card.append(cardInner);
-    // We no longer render the old Actions section with a dropdown; buttonsGrid is used instead
 
     exhibitsSection = section('Exhibits');
     const exHeader = el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } });
@@ -232,12 +215,11 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     approvalsSection = section('Approvals (stub)');
     approvalsSection.append(el('div', {}, ['No approvers configured.']));
 
-    // Assistant chat section
     const assistantSection = section('Assistant');
     chatBoxEl = el('div', { style: { border: '1px solid #ddd', borderRadius: '6px', padding: '8px', height: '120px', overflow: 'auto', background: '#fff' } }, ["Hi, I'm OG Assist. How can I help you?"]);
     const chatRow = el('div', { style: { display: 'flex', gap: '8px' } });
     chatInputEl = el('input', { type: 'text', placeholder: 'Type a message...', style: { flex: '1', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '4px' } });
-    const chatSend = el('button', { class: 'ms-Button', onclick: async () => { const t = chatInputEl.value.trim(); if (!t) return; chatBoxEl.append(el('div', { style: { marginTop: '6px' } }, [t])); chatInputEl.value=''; try { await fetch(`${API_BASE}/api/v1/events/client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat', payload: { text: t }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} } }, [el('span', { class: 'ms-Button-label' }, ['Send'])]);
+    const chatSend = el('button', { class: 'ms-Button', onclick: async () => { const t = chatInputEl.value.trim(); if (!t) return; chatBoxEl.append(el('div', { style: { marginTop: '6px' } }, [t])); chatInputEl.value=''; try { await fetch(`${API_BASE}/api/v1/events/client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat', payload: { text: t }, userId: currentUser, platform: detectPlatform() }) }); } catch {} } }, [el('span', { class: 'ms-Button-label' }, ['Send'])]);
     chatRow.append(chatInputEl, chatSend);
     assistantSection.append(chatBoxEl, chatRow);
 
@@ -331,7 +313,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     add('Finalize', async () => { try { await fetch(`${API_BASE}/api/v1/finalize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('finalize OK'); await updateUI(); } catch(e){ log(`finalize ERR ${e.message}`);} }, !!config.buttons.finalizeBtn);
     add('Unfinalize', async () => { try { await fetch(`${API_BASE}/api/v1/unfinalize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('unfinalize OK'); await updateUI(); } catch(e){ log(`unfinalize ERR ${e.message}`);} }, !!config.buttons.unfinalizeBtn);
     add('Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkout OK'); await updateUI(); } catch(e){ log(`checkout ERR ${e.message}`);} }, !!config.buttons.checkoutBtn);
-    add('Override Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/override`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser, userRole: currentRole }) }); log('override OK'); await updateUI(); } catch(e){ log(`override ERR ${e.message}`);} }, !!config.buttons.overrideBtn);
+    add('Override Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/override`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('override OK'); await updateUI(); } catch(e){ log(`override ERR ${e.message}`);} }, !!config.buttons.overrideBtn);
     add('Checkin', async () => { try { await fetch(`${API_BASE}/api/v1/checkin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
     add('Cancel Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('cancel OK'); await updateUI(); } catch(e){ log(`cancel ERR ${e.message}`);} }, !!config.buttons.cancelBtn);
     add('Revert to Canonical', async () => { try { await doPost(`${API_BASE}/api/v1/document/revert`); log('revert OK'); } catch(e){ log(`revert ERR ${e.message}`);} }, true);
@@ -351,7 +333,6 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         }
         badge.textContent = `doc: ${currentDocumentId}`;
       }
-      // Update status chip and user card
       if (statusChipEl) {
         const cs = config.checkoutStatus || { isCheckedOut: false };
         if (!cs.isCheckedOut) {
@@ -395,13 +376,11 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   }
 
   ensureDom();
-  // Populate users dynamically
   (async () => {
     try {
       const r = await fetch(`${API_BASE}/api/v1/users`);
       const j = await r.json();
       const items = Array.isArray(j.items) ? j.items : [];
-      const rolesObj = j.roles || {};
       if (userSelectEl) {
         userSelectEl.innerHTML = '';
         let found = false;
@@ -415,23 +394,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         if (!found && items.length) {
           currentUser = items[0].id || items[0].label;
           userSelectEl.value = currentUser;
-        }
-      }
-      if (roleSelectEl) {
-        roleSelectEl.innerHTML = '';
-        const roleKeys = Object.keys(rolesObj);
-        const addRole = (rk) => roleSelectEl.append(el('option', { value: rk, selected: rk === currentRole ? 'selected' : null }, [rk]));
-        if (roleKeys.length) {
-          for (const rk of roleKeys) addRole(rk);
-          // default role to user's configured role if present
-          try {
-            const opt = userSelectEl?.selectedOptions?.[0];
-            const rCfg = opt?.getAttribute('data-role');
-            if (rCfg && roleKeys.includes(rCfg)) { currentRole = rCfg; roleSelectEl.value = rCfg; }
-          } catch {}
-        } else {
-          for (const rk of ['editor','vendor','viewer']) addRole(rk);
-          if (!currentRole) { currentRole = 'editor'; roleSelectEl.value = 'editor'; }
+          currentRole = items[0].role || 'editor';
         }
       }
     } catch {}
