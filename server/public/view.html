@@ -94,7 +94,11 @@
 
         // Mount SuperDoc with the default document URL
         let currentMode = 'editing';
-        const mount = (doc) => mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: currentMode, pagination: true, rulers: true });
+        let superdocInstance = null;
+        const mount = (doc) => {
+          superdocInstance = mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: currentMode, pagination: true, rulers: true, role: currentMode === 'viewing' ? 'viewer' : (currentMode === 'suggesting' ? 'suggester' : 'editor') });
+          return superdocInstance;
+        };
         const editorCol = document.getElementById('editor-col');
         const render = (doc) => {
           console.log('Render SuperDoc with', doc);
@@ -125,14 +129,14 @@
           const m = e.detail?.mode;
           if (m && ['editing','suggesting','viewing'].includes(m)) {
             currentMode = m;
-            // Remount in place with the same document to apply the new mode
             try {
-              const last = document.querySelector('#superdoc');
-              if (last && last.firstChild) {
-                // Heuristic: if already mounted, remount with canonical by default
+              if (superdocInstance && typeof superdocInstance.setDocumentMode === 'function') {
+                superdocInstance.setDocumentMode(currentMode);
+              } else {
+                // Fallback: remount if instance API not available
                 render('/documents/default.docx');
               }
-            } catch {}
+            } catch { /* ignore */ }
           }
         });
         // Mount shared UI in footer area
