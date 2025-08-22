@@ -317,7 +317,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     add('Checkin', async () => { try { await fetch(`${API_BASE}/api/v1/checkin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
     add('Cancel Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('cancel OK'); await updateUI(); } catch(e){ log(`cancel ERR ${e.message}`);} }, !!config.buttons.cancelBtn);
     add('Revert to Canonical', async () => { try { await doPost(`${API_BASE}/api/v1/document/revert`); log('revert OK'); } catch(e){ log(`revert ERR ${e.message}`);} }, true);
-    add('Snapshot', async () => { try { const r = await fetch(`${API_BASE}/api/v1/document/snapshot`, { method: 'POST' }); if (!r.ok) throw new Error('snapshot'); const j = await r.json(); log(`snapshot OK ${j.path || ''}`); } catch(e){ log(`snapshot ERR ${e.message}`);} }, true);
+    add('Snapshot', async () => { try { const r = await fetch(`${API_BASE}/api/v1/document/snapshot`, { method: 'POST' }); if (!r.ok) throw new Error('snapshot'); const j = await res.json(); log(`snapshot OK ${j.path || ''}`); } catch(e){ log(`snapshot ERR ${e.message}`);} }, true);
   }
 
   async function updateUI() {
@@ -396,6 +396,15 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
           userSelectEl.value = currentUser;
           currentRole = items[0].role || 'editor';
         }
+        // Always sync currentRole to the selected user's role on first load
+        try {
+          const opt = userSelectEl.selectedOptions?.[0];
+          const rsel = opt?.getAttribute('data-role');
+          if (rsel) {
+            currentRole = rsel;
+            if (userRolePillEl) userRolePillEl.textContent = rsel.toUpperCase();
+          }
+        } catch {}
       }
     } catch {}
     updateUI();
