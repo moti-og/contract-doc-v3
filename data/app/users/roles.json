@@ -1,8 +1,8 @@
 {
   "editor": { "finalize": true, "unfinalize": true, "checkout": true, "checkin": true, "override": true, "sendVendor": true },
-  "vendor": { "finalize": false, "unfinalize": false, "checkout": true, "checkin": true, "override": false },
-  "suggestor": { "finalize": false, "unfinalize": false, "checkout": true, "checkin": true, "override": false },
-  "viewer": { "finalize": false, "unfinalize": false, "checkout": false, "checkin": false, "override": false }
+  "vendor": { "finalize": false, "unfinalize": false, "checkout": true, "checkin": true, "override": false, "sendVendor": false },
+  "suggestor": { "finalize": false, "unfinalize": false, "checkout": true, "checkin": true, "override": false, "sendVendor": false },
+  "viewer": { "finalize": false, "unfinalize": false, "checkout": false, "checkin": false, "override": false, "sendVendor": false }
 }
 
 

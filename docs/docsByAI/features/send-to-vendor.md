@@ -45,7 +45,13 @@
 - Standard header “Send to Vendor”
 - Body layout: stacked labels/inputs, 12px vertical spacing
 - Footer: primary left, secondary right (or per house style)
-- Respect theme tokens if present (future: `/api/v1/theme` → `theme.modal`)
+- Styling is governed by server‑side theme tokens (`/api/v1/theme`). Clients do not hardcode colors or sizes.
+  - Proposed tokens (extensible):
+    - `theme.modal.bg`, `theme.modal.fg`
+    - `theme.modal.field.bg`, `theme.modal.field.border`, `theme.modal.field.fg`
+    - `theme.modal.primary.bg`, `theme.modal.primary.fg`
+    - `theme.modal.secondary.bg`, `theme.modal.secondary.fg`
+  - Changing button or modal backgrounds globally is done by updating `data/app/theme.json` and requires no client code changes.
 
 ## Telemetry (optional)
 - Log client event via `/api/v1/events/client` with type `sendVendor` and payload `{ vendorName, len: message.length }`.

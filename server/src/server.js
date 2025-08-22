@@ -542,7 +542,7 @@ app.get('/api/v1/ui/modal/send-vendor', (req, res) => {
         primary: modalTheme.primary || '#111827',
         muted: modalTheme.muted || '#6b7280'
       },
-      description: 'Add recipients and choose which notifications they will receive.',
+      description: 'Notify the vendor that the document is ready for them to review.',
       fields: [
         { name: 'from', label: 'From', type: 'text', required: true, value: defaultFrom },
         { name: 'vendorName', label: 'Vendor Name', type: 'text', required: true, value: "Moti's Builders" },
