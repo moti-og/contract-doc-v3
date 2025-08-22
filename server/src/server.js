@@ -273,7 +273,12 @@ app.get('/api/v1/state-matrix', (req, res) => {
       cancelBtn: !!rolePerm.checkin && isOwner,
       overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner,
     },
-    finalize: { isFinal: serverState.isFinal },
+    finalize: {
+      isFinal: serverState.isFinal,
+      banner: serverState.isFinal
+        ? { title: 'Finalized', message: 'This document is finalized. Non-owners are read-only.' }
+        : { title: 'Draft', message: 'This document is in draft.' }
+    },
     checkoutStatus: { isCheckedOut, checkedOutUserId: serverState.checkedOutBy },
     viewerMessage: isCheckedOut
       ? { type: isOwner ? 'info' : 'warning', text: isOwner ? `Checked out by you` : `Checked out by ${serverState.checkedOutBy}` }

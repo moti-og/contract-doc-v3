@@ -159,8 +159,22 @@
             pill.textContent = `mode: ${currentMode}`;
           } catch {}
         };
+        // Update finalize banner from state matrix
+        const updateFinalizeBanner = async () => {
+          try {
+            const r = await fetch('/api/v1/state-matrix?platform=web&userId=user1');
+            const j = await r.json();
+            const banner = j?.config?.finalize?.banner;
+            const top = document.getElementById('banner');
+            if (top && banner) {
+              const title = document.querySelector('.banner-title');
+              if (title) title.textContent = `${banner.title}: ${banner.message}`;
+            }
+          } catch {}
+        };
         // Initial load
         render(currentDoc);
+        updateFinalizeBanner();
         // Listen for UI requests to open other docs
         window.addEventListener('superdoc:open-url', (e) => {
           try { render(e.detail?.url || '/documents/default.docx'); } catch(err) { console.warn('open-url failed', err); }
@@ -181,11 +195,22 @@
                 // Fallback: remount if instance API not available
                 render(currentDoc);
               }
-              // Update badge
+              // Update badge and banner
               try { const b = document.getElementById('mode-badge'); if (b) b.textContent = `mode: ${currentMode}`; } catch {}
+              updateFinalizeBanner();
             } catch { /* ignore */ }
           }
         });
+        // SSE to refresh banner on finalize/unfinalize
+        try {
+          const es = new EventSource('/api/v1/events');
+          es.onmessage = (ev) => {
+            try {
+              const p = JSON.parse(ev.data);
+              if (p?.type === 'finalize') updateFinalizeBanner();
+            } catch {}
+          };
+        } catch {}
         // Mount shared UI in footer area
         mountApp({ rootSelector: '#app-root' });
       } catch (e) {
