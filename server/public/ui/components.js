@@ -161,7 +161,18 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     userSelectEl = userSel;
     const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, []);
     roleSelectEl = roleSel;
-    header.append(connectionBadge, lastEventBadge, el('span', {}, ['User: ']), userSel, el('span', {}, ['Role: ']), roleSel);
+    header.append(connectionBadge, lastEventBadge, el('span', {}, ['Role: ']), roleSel);
+
+    // User row below role selector: name, role pill, and switch user menu
+    userCardNameEl = el('div', { style: { fontWeight: '600' } }, [currentUser]);
+    userRolePillEl = el('span', { style: { marginLeft: '8px', background: '#fde68a', color: '#92400e', border: '1px solid #fbbf24', borderRadius: '999px', padding: '2px 6px', fontSize: '11px', fontWeight: '700' } }, [currentRole.toUpperCase()]);
+    const userRow = el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%' } }, [
+      el('span', { style: { color: '#6b7280', fontSize: '12px' } }, ['User:']),
+      userCardNameEl,
+      userRolePillEl,
+      userSel,
+    ]);
+    header.append(userRow);
 
     // Document link and status chip
     const docRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
@@ -180,18 +191,9 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     const card = section('');
     card.firstChild.remove();
     const cardInner = el('div', { style: { background: '#fff7db', border: '1px solid #f5e3a3', borderRadius: '8px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' } });
-    const cardTop = el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } });
-    cardTop.append(el('div', { style: { color: '#6b7280', fontSize: '12px' } }, ['User: ']));
-    userCardNameEl = el('div', { style: { fontWeight: '600' } }, [currentUser]);
-    userRolePillEl = el('span', { style: { marginLeft: '8px', background: '#fde68a', color: '#92400e', border: '1px solid #fbbf24', borderRadius: '999px', padding: '2px 6px', fontSize: '11px', fontWeight: '700' } }, [currentRole.toUpperCase()]);
-    cardTop.append(userCardNameEl, userRolePillEl);
-    const switchRow = el('div', {}, [
-      el('div', { style: { fontSize: '12px', color: '#6b7280', marginBottom: '4px' } }, ['Switch user:']),
-      userSel,
-    ]);
     // Buttons grid container (2 columns on narrow panes)
     buttonsGrid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '8px' } });
-    cardInner.append(cardTop, switchRow, buttonsGrid);
+    cardInner.append(buttonsGrid);
     card.append(cardInner);
     // We no longer render the old Actions section with a dropdown; buttonsGrid is used instead
 
