@@ -393,13 +393,16 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
           userSelectEl.value = currentUser;
           currentRole = items[0].role || 'editor';
         }
-        // Always sync currentRole to the selected user's role on first load
+        // Always sync current user and role to the selected option on first load
         try {
           const opt = userSelectEl.selectedOptions?.[0];
-          const rsel = opt?.getAttribute('data-role');
-          if (rsel) {
-            currentRole = rsel;
-            if (userRolePillEl) userRolePillEl.textContent = rsel.toUpperCase();
+          if (opt) {
+            currentUser = opt.value || currentUser;
+            const rsel = opt.getAttribute('data-role');
+            if (rsel) {
+              currentRole = rsel;
+              if (userRolePillEl) userRolePillEl.textContent = rsel.toUpperCase();
+            }
           }
         } catch {}
       }
