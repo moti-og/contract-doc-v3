@@ -245,6 +245,7 @@ app.get('/api/v1/state-matrix', (req, res) => {
       unfinalizeBtn: !!rolePerm.unfinalize && serverState.isFinal && canWrite,
       checkoutBtn: !!rolePerm.checkout && !isCheckedOut,
       checkinBtn: !!rolePerm.checkin && isOwner,
+      cancelBtn: !!rolePerm.checkin && isOwner,
       overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner,
     },
     finalize: { isFinal: serverState.isFinal },
@@ -351,6 +352,22 @@ app.post('/api/v1/checkin', (req, res) => {
   serverState.lastUpdated = new Date().toISOString();
   persistState();
   broadcast({ type: 'checkin', userId });
+  res.json({ ok: true });
+});
+
+// Cancel checkout: release lock without any additional actions
+app.post('/api/v1/checkout/cancel', (req, res) => {
+  const userId = req.body?.userId || 'user1';
+  if (!serverState.checkedOutBy) {
+    return res.status(409).json({ error: 'Not checked out' });
+  }
+  if (serverState.checkedOutBy !== userId) {
+    return res.status(409).json({ error: `Checked out by ${serverState.checkedOutBy}` });
+  }
+  serverState.checkedOutBy = null;
+  serverState.lastUpdated = new Date().toISOString();
+  persistState();
+  broadcast({ type: 'checkoutCancel', userId });
   res.json({ ok: true });
 });
 

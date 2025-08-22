@@ -63,6 +63,7 @@ The server computes a config bundle used by both clients. Relevant parts:
     "checkoutBtn": true,
     "checkinBtn": false,
     "cancelBtn": false,
+    "overrideBtn": false,
     "finalizeBtn": false,
     "unfinalizeBtn": false
   },
@@ -75,6 +76,7 @@ Rules (summarized from implementation):
 - `checkoutBtn`: shown for roles that allow checkout when not checked out.
 - `overrideBtn`: shown for roles with `override: true` when someone else has it checked out.
 - `checkinBtn` and `cancelBtn`: shown only for the owner.
+- `overrideBtn`: shown for roles with `override: true` when someone else owns the checkout.
 - `finalizeBtn`: enabled for editors when not final AND (not checked out OR owner); on finalize, checkout is cleared.
 - `unfinalizeBtn`: enabled for editors when final.
 
@@ -124,6 +126,7 @@ The Web client applies this via a `superdoc:set-mode` event. If the doc is check
 $base = "https://localhost:4001"
 Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout" -ContentType 'application/json' -Body '{"userId":"user1"}'
 Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkin"  -ContentType 'application/json' -Body '{"userId":"user1"}'
+Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout/cancel"  -ContentType 'application/json' -Body '{"userId":"user1"}'
 Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout/override" -ContentType 'application/json' -Body '{"userId":"user2","userRole":"editor"}'
 ```
 
