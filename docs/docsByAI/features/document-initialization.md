@@ -100,5 +100,5 @@
 
 ## References
 - Web host: `web/view.html` (document mount and custom event listeners).
-- Shared UI: `shared-ui/components.js` (dispatches `superdoc:open-url` and related hooks).
+- Shared UI (React): `/ui/components.react.js` (Dispatches `superdoc:open-url` for web and inserts via Office.js for Word).
 - Server: `GET /documents/default.docx`, `GET /api/v1/events`, `POST /api/v1/events/client`.

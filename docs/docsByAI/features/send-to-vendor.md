@@ -33,7 +33,7 @@
   - Notes: In prototype, endpoint may no‑op and log to server console or emit SSE `{ type: 'sendVendor', payload }`.
 
 ## Client Implementation Notes
-- Right‑pane UI (`server/public/ui/components.js`):
+- Right‑pane UI (React) `/ui/components.react.js`:
   - Render “Send to Vendor” button when `config.buttons.sendVendorBtn` is true.
   - On click, open modal per modal style guide; on submit, call `POST /api/v1/send-vendor`.
   - After success, close form modal and open lightweight confirmation modal.

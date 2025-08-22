@@ -23,7 +23,7 @@ Word add‑in behavior
   - `Word.run(ctx => ctx.document.body.insertFileFromBase64(base64, Word.InsertLocation.replace))`
 
 Files of record
-- UI (buttons + dispatch for web, Office.js for Word): `server/public/ui/components.js`
+- UI (React right‑pane): `/ui/components.react.js` (web dispatch + Word insert)
 - Web host remount: `server/public/view.html`
 - Server routes for canonical/working/default: `server/src/server.js`
 

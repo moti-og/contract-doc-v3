@@ -90,7 +90,7 @@ The Web client applies this via a `superdoc:set-mode` event. If the doc is check
 
 ## Client behavior (Web and Word add‑in)
 
-### Shared UI module (`server/public/ui/components.js`)
+### Shared UI module (React) `/ui/components.react.js`
 - Renders user/role selectors, status, and a buttons grid.
 - Fetches `/api/v1/state-matrix?platform&userId` and renders buttons according to `config.buttons`.
 - On Checkout/Check‑in/Cancel click:

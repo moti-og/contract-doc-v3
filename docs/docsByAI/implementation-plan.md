@@ -70,7 +70,7 @@ Include in each client HTML:
 Then import and mount our shared module:
 ```
 // React entry is loaded via script tag: /ui/components.react.js
-mountApp({ rootSelector: '#app-root' });
+// React-only: React mounts via `window.mountReactApp({ rootSelector })` from /ui/components.react.js
 ```
 
 ## Phased tasks
