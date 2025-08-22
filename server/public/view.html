@@ -162,13 +162,17 @@
         // Update finalize banner from state matrix
         const updateFinalizeBanner = async () => {
           try {
+            console.log('[banner] fetching state-matrix for banner');
             const r = await fetch('/api/v1/state-matrix?platform=web&userId=user1');
             const j = await r.json();
             const banner = j?.config?.finalize?.banner;
             const top = document.getElementById('banner');
             if (top && banner) {
               const title = document.querySelector('.banner-title');
+              const pill = document.querySelector('.pill-left');
               if (title) title.textContent = `${banner.title}: ${banner.message}`;
+              if (pill) pill.textContent = banner.title === 'Finalized' ? 'Finalized' : 'Draft';
+              console.log('[banner] updated:', banner);
             }
           } catch {}
         };
@@ -204,13 +208,18 @@
         // SSE to refresh banner on finalize/unfinalize
         try {
           const es = new EventSource('/api/v1/events');
+          es.onopen = () => console.log('[banner] SSE open');
+          es.onerror = (e) => console.warn('[banner] SSE error', e);
           es.onmessage = (ev) => {
             try {
               const p = JSON.parse(ev.data);
-              if (p?.type === 'finalize') updateFinalizeBanner();
-            } catch {}
+              if (p?.type === 'finalize') {
+                console.log('[banner] finalize event', p);
+                updateFinalizeBanner();
+              }
+            } catch (e) { console.warn('[banner] parse err', e); }
           };
-        } catch {}
+        } catch (e) { console.warn('[banner] SSE init failed', e); }
         // Mount shared UI in footer area
         mountApp({ rootSelector: '#app-root' });
       } catch (e) {
