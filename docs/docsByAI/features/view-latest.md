@@ -6,6 +6,7 @@ Purpose
 
 State-machine
 - No transitions. `GET /api/v1/state-matrix` is only used to render the rest of the UI; View Latest is always enabled (not gated by `isFinal` or checkout status).
+ - Related signals used by the client for layout: `viewerMessage`, `banner` (text from server; styles from theme).
 
 Endpoints
 - Canonical document: `GET /documents/canonical/default.docx`

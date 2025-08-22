@@ -1,8 +1,8 @@
 [
   { "id": "user1", "label": "Warren Peace", "role": "editor" },
   { "id": "user2", "label": "Fun E Guy", "role": "editor" },
-  { "id": "user3", "label": "Yuri Lee Laffed",  "role": "vendor" },
-  { "id": "user4", "label": "Hoo R U",  "role": "viewer" }
+  { "id": "user3", "label": "Yuri Lee Laffed",  "role": "suggestor" },
+  { "id": "user4", "label": "Hoo R U",  "role": "vendor" },
+  { "id": "user5", "label": "Gettysburger King",  "role": "viewer" }
 ]
-
 

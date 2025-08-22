@@ -58,6 +58,45 @@ function persistState() {
   } catch {}
 }
 
+// Helpers: users/roles
+function loadUsers() {
+  try {
+    const up = path.join(dataUsersDir, 'users.json');
+    if (!fs.existsSync(up)) return [];
+    const users = JSON.parse(fs.readFileSync(up, 'utf8'));
+    return Array.isArray(users) ? users : [];
+  } catch { return []; }
+}
+function loadRoleMap() {
+  try {
+    const rp = path.join(dataUsersDir, 'roles.json');
+    if (!fs.existsSync(rp)) return {};
+    return JSON.parse(fs.readFileSync(rp, 'utf8')) || {};
+  } catch { return {}; }
+}
+function getUserRole(userId) {
+  const users = loadUsers();
+  for (const u of users) {
+    if (typeof u === 'string') {
+      if (u === userId) return 'editor';
+    } else if (u && (u.id === userId || u.label === userId)) {
+      return u.role || 'editor';
+    }
+  }
+  return 'editor';
+}
+
+function buildBanner({ isFinal, isCheckedOut, isOwner, checkedOutBy }) {
+  if (isFinal) {
+    return { state: 'final', title: 'Finalized', message: 'This document is finalized.' };
+  }
+  if (isCheckedOut) {
+    if (isOwner) return { state: 'checked_out_self', title: 'Checked out by you', message: 'You can edit. Remember to check in.' };
+    return { state: 'checked_out_other', title: 'Checked out', message: `Checked out by ${checkedOutBy}` };
+  }
+  return { state: 'available', title: 'Available to check out', message: 'No one is editing this document.' };
+}
+
 // SSE clients
 const sseClients = new Set();
 function broadcast(event) {
@@ -224,17 +263,15 @@ app.get('/api/v1/current-document', (req, res) => {
 });
 
 app.get('/api/v1/state-matrix', (req, res) => {
-  const { userRole = 'editor', platform = 'web', userId = 'user1' } = req.query;
-  // Load role map to compute permissions
-  let roleMap = {};
-  try {
-    const rp = path.join(dataUsersDir, 'roles.json');
-    if (fs.existsSync(rp)) roleMap = JSON.parse(fs.readFileSync(rp, 'utf8')) || {};
-  } catch {}
+  const { platform = 'web', userId = 'user1' } = req.query;
+  // Derive role from users.json
+  const derivedRole = getUserRole(userId);
+  const roleMap = loadRoleMap();
   const isCheckedOut = !!serverState.checkedOutBy;
   const isOwner = serverState.checkedOutBy === userId;
   const canWrite = !isCheckedOut || isOwner;
-  const rolePerm = roleMap[userRole] || {};
+  const rolePerm = roleMap[derivedRole] || {};
+  const banner = buildBanner({ isFinal: serverState.isFinal, isCheckedOut, isOwner, checkedOutBy: serverState.checkedOutBy });
   const config = {
     documentId: DOCUMENT_ID,
     buttons: {
@@ -243,10 +280,18 @@ app.get('/api/v1/state-matrix', (req, res) => {
       approvalsBtn: true,
       finalizeBtn: !!rolePerm.finalize && !serverState.isFinal && canWrite,
       unfinalizeBtn: !!rolePerm.unfinalize && serverState.isFinal && canWrite,
-      checkoutBtn: !!rolePerm.checkout && !isCheckedOut,
-      checkinBtn: !!rolePerm.checkin && isOwner,
+      checkoutBtn: !!rolePerm.checkout && !isCheckedOut && !serverState.isFinal,
+      checkinBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
+      cancelBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
+      overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner && !serverState.isFinal,
     },
-    finalize: { isFinal: serverState.isFinal },
+    finalize: {
+      isFinal: serverState.isFinal,
+      banner: serverState.isFinal
+        ? { title: 'Finalized', message: 'This document is finalized. Non-owners are read-only.' }
+        : { title: 'Draft', message: 'This document is in draft.' }
+    },
+    banner,
     checkoutStatus: { isCheckedOut, checkedOutUserId: serverState.checkedOutBy },
     viewerMessage: isCheckedOut
       ? { type: isOwner ? 'info' : 'warning', text: isOwner ? `Checked out by you` : `Checked out by ${serverState.checkedOutBy}` }
@@ -255,16 +300,38 @@ app.get('/api/v1/state-matrix', (req, res) => {
   res.json({ config });
 });
 
+// Theme endpoint: returns style tokens for clients (banner colors, etc.)
+app.get('/api/v1/theme', (req, res) => {
+  try {
+    const themePath = path.join(dataAppDir, 'theme.json');
+    if (fs.existsSync(themePath)) {
+      const j = JSON.parse(fs.readFileSync(themePath, 'utf8'));
+      return res.json(j);
+    }
+  } catch {}
+  return res.json({
+    banner: {
+      final: { bg: 'linear-gradient(180deg,#b91c1c,#ef4444)', fg: '#ffffff', pillBg: '#7f1d1d', pillFg: '#ffffff' },
+      checked_out_self: { bg: 'linear-gradient(180deg,#2563eb,#60a5fa)', fg: '#ffffff', pillBg: '#1e3a8a', pillFg: '#ffffff' },
+      checked_out_other: { bg: 'linear-gradient(180deg,#b45309,#f59e0b)', fg: '#111827', pillBg: '#92400e', pillFg: '#ffffff' },
+      available: { bg: 'linear-gradient(180deg,#16a34a,#4ade80)', fg: '#ffffff', pillBg: '#166534', pillFg: '#ffffff' }
+    }
+  });
+});
+
 app.get('/api/v1/approvals/state', (req, res) => {
   res.json({ documentId: 'default', approvers: [] });
 });
 
 app.post('/api/v1/finalize', (req, res) => {
   const userId = req.body?.userId || 'user1';
+  // Finalize allowed even if someone else has checkout? For safety, require not held by another user.
   if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
     return res.status(409).json({ error: `Checked out by ${serverState.checkedOutBy}` });
   }
   serverState.isFinal = true;
+  // Clear any existing checkout
+  serverState.checkedOutBy = null;
   serverState.lastUpdated = new Date().toISOString();
   persistState();
   broadcast({ type: 'finalize', value: true, userId });
@@ -325,9 +392,44 @@ app.post('/api/v1/document/snapshot', (req, res) => {
   }
 });
 
+// Factory reset: wipe working overlays and reset server state
+app.post('/api/v1/factory-reset', (req, res) => {
+  try {
+    // Remove working document overlay
+    const wDoc = path.join(workingDocumentsDir, 'default.docx');
+    if (fs.existsSync(wDoc)) fs.rmSync(wDoc);
+    // Remove exhibits overlays
+    if (fs.existsSync(workingExhibitsDir)) {
+      for (const f of fs.readdirSync(workingExhibitsDir)) {
+        const p = path.join(workingExhibitsDir, f);
+        try { if (fs.statSync(p).isFile()) fs.rmSync(p); } catch {}
+      }
+    }
+    // Remove snapshots entirely
+    const snapDir = path.join(dataWorkingDir, 'snapshots');
+    if (fs.existsSync(snapDir)) {
+      try { fs.rmSync(snapDir, { recursive: true, force: true }); } catch {}
+    }
+    // Reset state
+    serverState.isFinal = false;
+    serverState.checkedOutBy = null;
+    serverState.lastUpdated = new Date().toISOString();
+    persistState();
+    broadcast({ type: 'factoryReset' });
+    // Also emit documentRevert to trigger existing client handlers
+    broadcast({ type: 'documentRevert' });
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'Factory reset failed' });
+  }
+});
+
 // Checkout/Checkin endpoints
 app.post('/api/v1/checkout', (req, res) => {
   const userId = req.body?.userId || 'user1';
+  if (serverState.isFinal) {
+    return res.status(409).json({ error: 'Finalized' });
+  }
   if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
     return res.status(409).json({ error: `Already checked out by ${serverState.checkedOutBy}` });
   }
@@ -353,9 +455,46 @@ app.post('/api/v1/checkin', (req, res) => {
   res.json({ ok: true });
 });
 
+// Cancel checkout: release lock without any additional actions
+app.post('/api/v1/checkout/cancel', (req, res) => {
+  const userId = req.body?.userId || 'user1';
+  if (!serverState.checkedOutBy) {
+    return res.status(409).json({ error: 'Not checked out' });
+  }
+  if (serverState.checkedOutBy !== userId) {
+    return res.status(409).json({ error: `Checked out by ${serverState.checkedOutBy}` });
+  }
+  serverState.checkedOutBy = null;
+  serverState.lastUpdated = new Date().toISOString();
+  persistState();
+  broadcast({ type: 'checkoutCancel', userId });
+  res.json({ ok: true });
+});
+
+// Override checkout (admin/editor capability): forcefully take ownership
+app.post('/api/v1/checkout/override', (req, res) => {
+  const userId = req.body?.userId || 'user1';
+  const derivedRole = getUserRole(userId);
+  const roleMap = loadRoleMap();
+  const canOverride = !!(roleMap[derivedRole] && roleMap[derivedRole].override);
+  if (serverState.isFinal) return res.status(409).json({ error: 'Finalized' });
+  if (!canOverride) return res.status(403).json({ error: 'Forbidden' });
+  // Override: clear any existing checkout, reverting to Available to check out
+  if (serverState.checkedOutBy) {
+    serverState.checkedOutBy = null;
+    serverState.lastUpdated = new Date().toISOString();
+    persistState();
+    broadcast({ type: 'overrideCheckout', userId });
+    return res.json({ ok: true, checkedOutBy: null });
+  }
+  // Nothing to clear; already available
+  return res.json({ ok: true, checkedOutBy: null });
+});
+
 // Client-originated events (prototype): accept and rebroadcast for parity
 app.post('/api/v1/events/client', (req, res) => {
-  const { type = 'clientEvent', payload = {}, userId = 'user1', role = 'editor', platform = 'web' } = req.body || {};
+  const { type = 'clientEvent', payload = {}, userId = 'user1', platform = 'web' } = req.body || {};
+  const role = getUserRole(userId);
   broadcast({ type, payload, userId, role, platform });
   res.json({ ok: true });
 });

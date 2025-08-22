@@ -54,6 +54,14 @@ UI population (users list, role list, auto‑default to user’s role):
 - Change UI population/labels: `server/public/ui/components.js`.
 - Add role→mode adapter (next): shared helper used by both Web (SuperDoc) and Word (Office.js).
 
+## 5) Banner (centralized)
+- Server computes a single `config.banner` in `/api/v1/state-matrix` with:
+  - `state`: `available | checked_out_self | checked_out_other | final`
+  - `title`, `message`: strings to display
+- Styling tokens are delivered by `/api/v1/theme` (or `data/app/theme.json`):
+  - For each state: `bg`, `fg`, `pillBg`, `pillFg`
+- Clients (web + add‑in) simply render text and apply tokens; SSE events (`finalize`, `checkout`, `checkin`) trigger refresh.
+
 ## FAQ
 - Are users and roles decoupled? Yes. A user points to a role; roles define permissions. You can add new roles (e.g., `suggestor`) in `roles.json` and they will appear in the role dropdown after reload; assign users to that role in `users.json`.
 - Hidden logic? No—permissions flow strictly from `roles.json` and checkout ownership.
