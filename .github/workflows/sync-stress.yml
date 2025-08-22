@@ -1,0 +1,54 @@
+name: sync-stress
+
+on:
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 8 * * *'
+
+jobs:
+  stress:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend deps
+        shell: pwsh
+        run: |
+          cd server
+          npm ci
+
+      - name: Install collab deps
+        shell: pwsh
+        run: |
+          if (Test-Path 'collab/package.json') { cd collab; npm ci; cd .. }
+
+      - name: Start backend (HTTP allowed for CI)
+        shell: pwsh
+        run: |
+          $env:ALLOW_HTTP = 'true'
+          Start-Process -FilePath node -ArgumentList 'server/src/server.js' -NoNewWindow
+
+      - name: Start collab
+        shell: pwsh
+        run: |
+          Start-Process -FilePath node -ArgumentList 'collab/server.js' -NoNewWindow
+          Start-Sleep -Seconds 4
+
+      - name: Run sync stress (functional mode)
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\scripts\sync-stress.ps1 -Iterations 30 -DelayMs 200 -Users user1,user2 -SkipTls
+
+      - name: Stop node processes
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
