@@ -37,6 +37,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let lastEventBadge;
   let reconnectAttempt = 0;
   let userSelectEl;
+  let roleSelectEl;
   let actionsSelectEl;
   let statusChipEl;
   let userCardNameEl;
@@ -130,11 +131,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       updateUI();
     } });
     userSelectEl = userSel;
-    const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, [
-      el('option', { value: 'editor', selected: 'selected' }, ['editor']),
-      el('option', { value: 'vendor' }, ['vendor']),
-      el('option', { value: 'viewer' }, ['viewer']),
-    ]);
+    const roleSel = el('select', { onchange: async (e) => { currentRole = e.target.value; log(`role set to ${currentRole}`); try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'roleChange', payload: { role: currentRole }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} updateUI(); } }, []);
+    roleSelectEl = roleSel;
     header.append(connectionBadge, lastEventBadge, el('span', {}, ['User: ']), userSel, el('span', {}, ['Role: ']), roleSel);
 
     // Document link and status chip
@@ -386,6 +384,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       const r = await fetch('/api/v1/users');
       const j = await r.json();
       const items = Array.isArray(j.items) ? j.items : [];
+      const rolesObj = j.roles || {};
       if (userSelectEl) {
         userSelectEl.innerHTML = '';
         let found = false;
@@ -399,6 +398,23 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         if (!found && items.length) {
           currentUser = items[0].id || items[0].label;
           userSelectEl.value = currentUser;
+        }
+      }
+      if (roleSelectEl) {
+        roleSelectEl.innerHTML = '';
+        const roleKeys = Object.keys(rolesObj);
+        const addRole = (rk) => roleSelectEl.append(el('option', { value: rk, selected: rk === currentRole ? 'selected' : null }, [rk]));
+        if (roleKeys.length) {
+          for (const rk of roleKeys) addRole(rk);
+          // default role to user's configured role if present
+          try {
+            const opt = userSelectEl?.selectedOptions?.[0];
+            const rCfg = opt?.getAttribute('data-role');
+            if (rCfg && roleKeys.includes(rCfg)) { currentRole = rCfg; roleSelectEl.value = rCfg; }
+          } catch {}
+        } else {
+          for (const rk of ['editor','vendor','viewer']) addRole(rk);
+          if (!currentRole) { currentRole = 'editor'; roleSelectEl.value = 'editor'; }
         }
       }
     } catch {}
