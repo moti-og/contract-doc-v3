@@ -142,7 +142,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     if (initialized) return;
     container = el('div', { id: 'ui-container', style: { display: 'flex', flexDirection: 'column', gap: '12px' } });
 
-    const header = el('div', { style: { padding: '8px 0', fontWeight: '600', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #eee' } }, [
+    const header = el('div', { style: { padding: detectPlatform()==='word' ? '4px 0' : '8px 0', fontWeight: '600', display: 'flex', gap: detectPlatform()==='word' ? '4px' : '8px', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #eee' } }, [
       `Shared UI — Platform: ${detectPlatform()}`,
     ]);
     connectionBadge = el('span', { id: 'conn-badge', style: { marginLeft: '8px', padding: '2px 6px', border: '1px solid #ddd', borderRadius: '10px', fontSize: '12px', background: '#fafafa' } }, ['disconnected']);
