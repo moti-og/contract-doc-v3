@@ -168,15 +168,21 @@
             console.log('[banner] fetching state-matrix for banner');
             const r = await fetch('/api/v1/state-matrix?platform=web&userId=user1');
             const j = await r.json();
-            const banner = j?.config?.finalize?.banner;
+            const banner = j?.config?.banner;
+            let theme;
+            try { theme = await fetch('/api/v1/theme').then(r => r.json()); } catch {}
             const top = document.getElementById('banner');
             if (top && banner) {
               const title = document.querySelector('.banner-title');
               const pill = document.querySelector('.pill-left');
               if (title) title.textContent = `${banner.title}: ${banner.message}`;
-              if (pill) pill.textContent = banner.title === 'Finalized' ? 'Finalized' : 'Draft';
-              top.classList.remove('finalized','draft');
-              top.classList.add(banner.title === 'Finalized' ? 'finalized' : 'draft');
+              if (pill) pill.textContent = banner.title;
+              if (theme?.banner?.[banner.state]) {
+                const t = theme.banner[banner.state];
+                top.style.background = t.bg || '';
+                top.style.color = t.fg || '';
+                if (pill) { pill.style.background = t.pillBg || ''; pill.style.color = t.pillFg || ''; }
+              }
               console.log('[banner] updated:', banner);
             }
           } catch {}

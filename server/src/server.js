@@ -86,6 +86,17 @@ function getUserRole(userId) {
   return 'editor';
 }
 
+function buildBanner({ isFinal, isCheckedOut, isOwner, checkedOutBy }) {
+  if (isFinal) {
+    return { state: 'final', title: 'Finalized', message: 'This document is finalized.' };
+  }
+  if (isCheckedOut) {
+    if (isOwner) return { state: 'checked_out_self', title: 'Checked out by you', message: 'You can edit. Remember to check in.' };
+    return { state: 'checked_out_other', title: 'Checked out', message: `Checked out by ${checkedOutBy}` };
+  }
+  return { state: 'available', title: 'Available to check out', message: 'No one is editing this document.' };
+}
+
 // SSE clients
 const sseClients = new Set();
 function broadcast(event) {
@@ -260,6 +271,7 @@ app.get('/api/v1/state-matrix', (req, res) => {
   const isOwner = serverState.checkedOutBy === userId;
   const canWrite = !isCheckedOut || isOwner;
   const rolePerm = roleMap[derivedRole] || {};
+  const banner = buildBanner({ isFinal: serverState.isFinal, isCheckedOut, isOwner, checkedOutBy: serverState.checkedOutBy });
   const config = {
     documentId: DOCUMENT_ID,
     buttons: {
@@ -279,12 +291,32 @@ app.get('/api/v1/state-matrix', (req, res) => {
         ? { title: 'Finalized', message: 'This document is finalized. Non-owners are read-only.' }
         : { title: 'Draft', message: 'This document is in draft.' }
     },
+    banner,
     checkoutStatus: { isCheckedOut, checkedOutUserId: serverState.checkedOutBy },
     viewerMessage: isCheckedOut
       ? { type: isOwner ? 'info' : 'warning', text: isOwner ? `Checked out by you` : `Checked out by ${serverState.checkedOutBy}` }
       : { type: 'success', text: 'Available for editing' },
   };
   res.json({ config });
+});
+
+// Theme endpoint: returns style tokens for clients (banner colors, etc.)
+app.get('/api/v1/theme', (req, res) => {
+  try {
+    const themePath = path.join(dataAppDir, 'theme.json');
+    if (fs.existsSync(themePath)) {
+      const j = JSON.parse(fs.readFileSync(themePath, 'utf8'));
+      return res.json(j);
+    }
+  } catch {}
+  return res.json({
+    banner: {
+      final: { bg: 'linear-gradient(180deg,#b91c1c,#ef4444)', fg: '#ffffff', pillBg: '#7f1d1d', pillFg: '#ffffff' },
+      checked_out_self: { bg: 'linear-gradient(180deg,#2563eb,#60a5fa)', fg: '#ffffff', pillBg: '#1e3a8a', pillFg: '#ffffff' },
+      checked_out_other: { bg: 'linear-gradient(180deg,#b45309,#f59e0b)', fg: '#111827', pillBg: '#92400e', pillFg: '#ffffff' },
+      available: { bg: 'linear-gradient(180deg,#16a34a,#4ade80)', fg: '#ffffff', pillBg: '#166534', pillFg: '#ffffff' }
+    }
+  });
 });
 
 app.get('/api/v1/approvals/state', (req, res) => {
