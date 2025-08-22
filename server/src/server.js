@@ -284,6 +284,7 @@ app.get('/api/v1/state-matrix', (req, res) => {
       checkinBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
       cancelBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
       overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner && !serverState.isFinal,
+      sendVendorBtn: (derivedRole === 'editor') || !!rolePerm.sendVendor,
     },
     finalize: {
       isFinal: serverState.isFinal,
@@ -507,6 +508,14 @@ app.post('/api/v1/exhibits/upload', upload.single('file'), (req, res) => {
   const uploaded = req.file?.path;
   if (!uploaded) return res.status(400).json({ error: 'No file' });
   broadcast({ type: 'exhibitUpload', name: path.basename(uploaded) });
+  res.json({ ok: true });
+});
+
+// Send to Vendor (prototype): no-op with SSE echo
+app.post('/api/v1/send-vendor', (req, res) => {
+  const { from = 'user', message = '', vendorName = "Moti's Builders", userId = 'user1' } = req.body || {};
+  const payload = { from, message: String(message).slice(0, 200), vendorName };
+  broadcast({ type: 'sendVendor', payload, userId });
   res.json({ ok: true });
 });
 

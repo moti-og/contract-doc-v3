@@ -345,6 +345,24 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     add('Override Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/override`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('override OK'); await updateUI(); } catch(e){ log(`override ERR ${e.message}`);} }, !!config.buttons.overrideBtn);
     add('Checkin', async () => { try { await fetch(`${API_BASE}/api/v1/checkin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
     add('Cancel Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('cancel OK'); await updateUI(); } catch(e){ log(`cancel ERR ${e.message}`);} }, !!config.buttons.cancelBtn);
+    // Send to Vendor (modal)
+    add('Send to Vendor', async () => {
+      try {
+        const fromDefault = (() => {
+          try { const sel = userSelectEl?.selectedOptions?.[0]; return sel?.textContent?.trim() || currentUser; } catch { return currentUser; }
+        })();
+        const vendorDefault = "Moti's Builders";
+        const from = prompt('From:', fromDefault) || fromDefault;
+        const message = prompt('Message (max 200 chars):', '') || '';
+        const vendorName = prompt("Vendor name:", vendorDefault) || vendorDefault;
+        if ((message || '').trim().length === 0) { log('sendVendor canceled (empty message)'); return; }
+        const body = { from, message: message.slice(0,200), vendorName, userId: currentUser };
+        const r = await fetch(`${API_BASE}/api/v1/send-vendor`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!r.ok) throw new Error('send-vendor');
+        alert(`Message sent to ${vendorName}.`);
+        log(`sendVendor OK to ${vendorName}`);
+      } catch (e) { log(`sendVendor ERR ${e?.message || e}`); }
+    }, !!config.buttons.sendVendorBtn);
     // Factory Reset: wipe working overlays and reset state
     add('Factory Reset', async () => { 
       try { 
