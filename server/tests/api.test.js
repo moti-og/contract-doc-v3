@@ -97,11 +97,65 @@ describe('API', () => {
     expect(r.json.config).toBeTruthy();
   });
 
+  test('saveProgressBtn true only for owner checkout and not final', async () => {
+    // Ensure unfinalized and not checked out
+    await ensureUnfinalized();
+    await ensureNotCheckedOut();
+
+    // No checkout -> false
+    let r = await fetchJson('/api/v1/state-matrix?platform=web&userId=a');
+    expect(r.json.config.buttons.saveProgressBtn).toBeFalsy();
+
+    // Checkout by A -> true for A, false for B
+    await postJson('/api/v1/checkout', { userId: 'a' });
+    r = await fetchJson('/api/v1/state-matrix?platform=web&userId=a');
+    expect(r.json.config.buttons.saveProgressBtn).toBe(true);
+    r = await fetchJson('/api/v1/state-matrix?platform=web&userId=b');
+    expect(r.json.config.buttons.saveProgressBtn).toBeFalsy();
+
+    // Finalize -> false even for owner
+    await postJson('/api/v1/finalize', { userId: 'a' });
+    r = await fetchJson('/api/v1/state-matrix?platform=web&userId=a');
+    expect(r.json.config.buttons.saveProgressBtn).toBeFalsy();
+
+    // Cleanup
+    await postJson('/api/v1/unfinalize', { userId: 'a' });
+    await ensureNotCheckedOut();
+  });
+
   test('send-vendor modal schema is available', async () => {
     const r = await fetchJson('/api/v1/ui/modal/send-vendor?userId=tester');
     expect(r.status).toBe(200);
     expect(r.json.schema).toBeTruthy();
     expect(Array.isArray(r.json.schema.fields)).toBe(true);
+  });
+
+  test('save-progress endpoint enforces ownership/final and accepts valid docx-like bytes', async () => {
+    await ensureUnfinalized();
+    await ensureNotCheckedOut();
+    // Not checked out -> 409
+    let res = await postJson('/api/v1/save-progress', { userId: 'x', base64: Buffer.from('PKTEST').toString('base64') });
+    expect(res.status).toBe(409);
+
+    // Checkout by a
+    await postJson('/api/v1/checkout', { userId: 'a' });
+    // Wrong user -> 409
+    res = await postJson('/api/v1/save-progress', { userId: 'b', base64: Buffer.from('PKTEST').toString('base64') });
+    expect(res.status).toBe(409);
+    // Invalid payload -> 400
+    res = await postJson('/api/v1/save-progress', { userId: 'a', base64: Buffer.from('NOTZIP').toString('base64') });
+    expect(res.status).toBe(400);
+    // Valid minimal payload -> 200
+    res = await postJson('/api/v1/save-progress', { userId: 'a', base64: Buffer.from('PKOK').toString('base64') });
+    expect(res.status).toBe(200);
+    expect(typeof res.json.revision).toBe('number');
+
+    // Finalize blocks save-progress
+    await postJson('/api/v1/finalize', { userId: 'a' });
+    res = await postJson('/api/v1/save-progress', { userId: 'a', base64: Buffer.from('PKOK').toString('base64') });
+    expect(res.status).toBe(409);
+    await postJson('/api/v1/unfinalize', { userId: 'a' });
+    await ensureNotCheckedOut();
   });
 
   test('vendor React UMD assets are served', async () => {

@@ -307,6 +307,7 @@ app.get('/api/v1/state-matrix', (req, res) => {
       checkoutBtn: !!rolePerm.checkout && !isCheckedOut && !serverState.isFinal,
       checkinBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
       cancelBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
+      saveProgressBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
       overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner && !serverState.isFinal,
       sendVendorBtn: !!rolePerm.sendVendor && !serverState.isFinal,
     },
@@ -406,6 +407,29 @@ app.post('/api/v1/document/revert', (req, res) => {
   persistState();
   broadcast({ type: 'documentRevert' });
   res.json({ ok: true });
+});
+
+// Save progress: write working copy bytes without releasing checkout
+app.post('/api/v1/save-progress', (req, res) => {
+  try {
+    const userId = req.body?.userId || 'user1';
+    const base64 = req.body?.base64 || '';
+    if (serverState.isFinal) return res.status(409).json({ error: 'Finalized' });
+    if (!serverState.checkedOutBy) return res.status(409).json({ error: 'Not checked out' });
+    if (serverState.checkedOutBy !== userId) return res.status(409).json({ error: `Checked out by ${serverState.checkedOutBy}` });
+    let bytes;
+    try { bytes = Buffer.from(String(base64), 'base64'); } catch { return res.status(400).json({ error: 'invalid_base64' }); }
+    if (!bytes || bytes.length < 4) return res.status(400).json({ error: 'invalid_payload' });
+    // Minimal DOCX check (ZIP magic): must start with 'PK'
+    if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) return res.status(400).json({ error: 'invalid_docx' });
+    const dest = path.join(workingDocumentsDir, 'default.docx');
+    try { fs.writeFileSync(dest, bytes); } catch { return res.status(500).json({ error: 'write_failed' }); }
+    bumpRevision();
+    broadcast({ type: 'saveProgress', userId, size: bytes.length });
+    return res.json({ ok: true, revision: serverState.revision });
+  } catch (e) {
+    return res.status(500).json({ error: 'save_progress_failed' });
+  }
 });
 
 // Snapshot: copy working/canonical default to a timestamped backup

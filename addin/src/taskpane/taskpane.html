@@ -36,18 +36,15 @@
     <link rel="preload" as="script" href="/vendor/react/react-dom.production.min.js" />
     <script defer src="/vendor/react/react.production.min.js"></script>
     <script defer src="/vendor/react/react-dom.production.min.js"></script>
-    <script defer src="/ui/components.react.js"></script>
+    <script defer src="/ui/components.react.js?v=react-m3"></script>
     <script type="module">
-      import { mountApp } from '/ui/components.js?v=ui-actions-3';
       Office.onReady(async (info) => {
         console.log('Office.ready host:', info?.host);
         document.getElementById('sideload-msg').style.display = 'none';
         document.getElementById('app-body').style.display = 'block';
 
         try {
-          // Mount shared UI (taskpane sits alongside the Word document)
-          mountApp({ rootSelector: '#app-root' });
-          // Mount React banner stack alongside legacy UI (progressive)
+          // Mount React UI as authoritative right-pane UI
           try { if (window.mountReactApp) window.mountReactApp({ rootSelector: '#app-root' }); } catch {}
         } catch (e) {
           const el = document.getElementById('app-root');

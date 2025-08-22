@@ -29,10 +29,9 @@
   <!-- React UMD (local) and React entry (shared) -->
   <script defer src="/vendor/react/react.production.min.js"></script>
   <script defer src="/vendor/react/react-dom.production.min.js"></script>
-  <script defer src="/ui/components.react.js"></script>
+  <script defer src="/ui/components.react.js?v=react-m3"></script>
   <script type="module">
     import { mountSuperdoc } from '/web/superdoc-init.js?v=ui-actions-3';
-    import { mountApp } from '/ui/components.js?v=ui-actions-3';
     window.addEventListener('load', async () => {
       try {
         const res = await fetch('/documents/default.docx', { method: 'HEAD' });
@@ -67,7 +66,6 @@
             currentMode = m; try { if (superdocInstance && typeof superdocInstance.setDocumentMode === 'function') { superdocInstance.setDocumentMode(currentMode); render(currentDoc); } else { render(currentDoc); } let b = document.getElementById('mode-badge'); if (b) b.textContent = `mode: ${currentMode}`; } catch {}
           }
         });
-        mountApp({ rootSelector: '#app-root' });
         try { if (window.mountReactApp) window.mountReactApp({ rootSelector: '#react-root' }); } catch {}
       } catch (e) {
         const el = document.getElementById('superdoc');

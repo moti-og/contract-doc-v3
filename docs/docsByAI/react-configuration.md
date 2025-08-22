@@ -31,7 +31,7 @@ This document explains how to introduce React into the existing prototype while 
      - `https://localhost:4001/vendor/react/react.production.min.js`
      - `https://localhost:4001/vendor/react/react-dom.production.min.js`
 
-   Status: Added local placeholder UMD files and server tests to assert they’re served. Tests passing.
+   Status: Completed. Real React/ReactDOM UMDs are now vendored via `npm run vendor:react`; tests in place to assert serving.
 
 2) Preload React in both clients
    - In `web/view.html` add:
@@ -42,7 +42,7 @@ This document explains how to introduce React into the existing prototype while 
      - Then `<script defer src="/ui/components.react.js"></script>`
    - In `addin/src/taskpane/taskpane.html` do the same (the dev server proxies `/vendor` and `/ui` to 4001).
 
-   Status: Added preload/defer script tags to `web/view.html` and `addin/src/taskpane/taskpane.html`, plus inclusion of `/ui/components.react.js`. React mounts are guarded and can coexist with legacy DOM.
+   Status: Completed. Preload/defer in both clients; mounts guarded. Added guard to skip mounting when placeholder UMDs are detected.
 
 3) Create `/shared-ui/components.react.js`
    - Export a `mountReactApp({ rootSelector })` that:
@@ -50,18 +50,20 @@ This document explains how to introduce React into the existing prototype while 
      - Wraps children with `ThemeProvider` (fetches `/api/v1/theme`) and `StateProvider` (fetches `/api/v1/state-matrix`, listens to `/api/v1/events`).
      - Initially render only `BannerStack` to minimize risk.
 
-   Status: Added `shared-ui/components.react.js` with `mountReactApp`, `ThemeProvider`, `StateProvider`, and a `BannerStack` component. Added server test asserting `/ui/components.react.js` is served. Tests passing.
+   Status: Completed. `mountReactApp`, `ThemeProvider`, `StateProvider`, `BannerStack` present; server test asserts serving.
 
 4) Migrate Send-to-Vendor modal to React
    - Keep the same server schema (`/api/v1/ui/modal/send-vendor`).
    - Build a `SendVendorModal` component that consumes schema fields/actions and modal tokens from ThemeProvider.
    - Wire the “Send” action to `POST /api/v1/send-vendor`.
 
-   Status: Implemented a React `SendVendorModal` and a global `openReactModal(id, options)` trigger. Updated legacy button to prefer the React modal when available, falling back to server-rendered modal. Added server test for modal schema. Tests passing.
+   Status: Completed. React `SendVendorModal` + `openReactModal()` present; legacy button prefers React.
 
-5) Migrate ActionButtons and button tokens
-   - Add optional `buttons` tokens to `data/app/theme.json` (e.g., `buttons.primary.bg/fg`, `buttons.secondary.bg/fg`).
-   - Implement `ActionButtons({ buttons, actions })` that renders allowed actions from `config.buttons` and uses `ThemeProvider` tokens.
+5) Migrate ActionButtons and button tokens (new plan: React is authoritative renderer)
+   - Implement `ActionButtons({ buttons, actions })` that renders allowed actions from `config.buttons` and uses Theme tokens.
+   - Actions include: Checkout, Checkin, Cancel Checkout, Save Progress, Finalize/Unfinalize, Override Checkout, Send to Vendor, Factory Reset.
+   - Use existing endpoints; share Save Progress logic (Word export; web fetch current bytes) within React actions.
+   - Optional: add `theme.buttons.*` tokens for styling.
 
 6) Migrate Exhibits/Approvals
    - `ExhibitsList` fetches `/api/v1/exhibits` and renders links/upload flow.
@@ -69,9 +71,26 @@ This document explains how to introduce React into the existing prototype while 
    - Remove the equivalent non-React code once parity is confirmed.
 
 7) Testing and rollout
-   - Jest for pure component logic (props → rendered output); no DOM side effects.
-   - Playwright smoke remains unchanged; ensure selectors (e.g., `.ms-Button` and visible button text) persist.
-   - Add a lightweight feature flag (e.g., a global `window.__USE_REACT__` or server-driven toggle) to enable/disable React rendering in case we need quick rollback.
+   - Add-in first, then web (to avoid double renderers). Mount React into a dedicated `#react-root` container; keep legacy UI for one test cycle.
+   - Jest for component logic (props → actions); API tests remain green.
+   - Playwright: extend smoke to click React-rendered buttons; selectors unchanged where possible.
+   - Use a lightweight feature flag (`window.__USE_REACT__`) to enable React rendering per client; remove after cutover.
+
+### Milestones aligned with verification flow
+1) Build shared React components (ActionButtons, ExhibitsList, ConnectionBadge, UserCard, DocumentControls) and wire actions.
+   - Status: Completed. Components added; Save Progress shares logic across Word/web.
+2) Test shared components
+   - Status: Completed. Backend tests green; manual validation in add-in/web ongoing.
+3) Implement React in the add‑in (behind flag)
+   - Status: Completed. React is now the authoritative right‑pane UI mounted at `#app-root`; legacy mount removed.
+4) Test the add‑in
+   - Status: Completed (initial). Manual flows validated: checkout, Save Progress (Word export), checkin/finalize, Send to Vendor; no placeholder warnings.
+5) Implement React in the web (behind flag)
+   - Status: Completed. React is authoritative via `#react-root`; legacy mount removed in `view.html`.
+6) Test in the web
+   - Status: Completed (initial). Manual validation shows banners, ActionButtons (incl. Save Progress), DocumentControls, Exhibits, and connection badge.
+7) End‑to‑end testing and cutover
+   - Status: Planned. Remove legacy UI, remove flag, docs updated.
 
 ### Theme tokens (stays server-driven)
 - Keep `data/app/theme.json` as the single source of style tokens.

@@ -1,3 +1,5 @@
+********FROM V2 -- state matrix********
+
 # State Matrix – Plain‑English Guide (Single File)
 
 This file explains, in plain English, what our “state matrix” is, what goes in, what comes out, and how buttons/flags are decided for the web viewer and the Word add‑in. It consolidates what’s in `api-server.js`, `state_matrix_api.js`, and `state-matrix-client.js` without code.
@@ -5,6 +7,7 @@ This file explains, in plain English, what our “state matrix” is, what goes 
 ## What is the state matrix?
 The state matrix is a server‑computed JSON bundle that tells the client exactly how to render the UI for the current user and document. It controls:
 - Which actions (buttons/menu items) are visible/enabled
+- The label/order of actions in the “Document actions” dropdown
 - Whether the document is finalized and what to show for confirm banners
 - Approval UI flags
 - Viewer message banners and simple checkout status
@@ -41,6 +44,14 @@ The server returns an object (fields may be omitted when not relevant):
     "unfinalizeBtn": false,
     "checkedInBtns": false
   },
+  "dropdown": {
+    "order": [
+      "viewOnlyBtn","shareToWebBtn","templatesBtn","openGovBtn",
+      "checkoutBtn","checkinBtn","cancelBtn","saveProgressBtn",
+      "overrideBtn","sendVendorBtn","replaceDefaultBtn",
+      "compile","approvalsBtn","finalize","unfinalize"
+    ]
+  },
   "finalize": {
     "isFinal": false,
     "confirm": { "title": "Finalize?", "message": "…" },
@@ -56,7 +67,7 @@ The server returns an object (fields may be omitted when not relevant):
 Notes:
 - Not every field is always present. The client code is tolerant to missing sections.
 - `buttons.*` are simple boolean flags that drive visibility/enabled state.
- 
+- `dropdown.order` can be provided by the server; otherwise the client uses a default fallback order (see below).
 
 ## Button catalog (what each flag means)
 - `viewOnlyBtn` – Open the latest version read‑only in the current surface.
@@ -76,7 +87,17 @@ Notes:
 - `unfinalizeBtn` – Unlock (only editors; doc must be final).
 - `checkedInBtns` – Convenience flag used by the client to show the non‑checkout group when you don’t own a checkout.
 
- 
+## Default dropdown order (client fallback)
+If the server does not provide `dropdown.order`, the client uses this fallback sequence (left‑to‑right is top‑to‑bottom in the dropdown):
+
+```
+viewOnlyBtn, shareToWebBtn, templatesBtn, openGovBtn,
+checkoutBtn, checkinBtn, cancelBtn, saveProgressBtn,
+overrideBtn, sendVendorBtn, replaceDefaultBtn,
+compile, approvalsBtn, finalize, unfinalize
+```
+
+The client filters this list to only include buttons whose flags are true.
 
 ## Key rules the server applies (summarized)
 - Role‑gated actions
@@ -91,7 +112,7 @@ Notes:
   - When final, `checkoutBtn`, `checkinBtn`, `cancelBtn`, and `overrideBtn` are hidden/disabled; server endpoints return 409 for checkout/override.
   - `unfinalizeBtn` is available to editors even without checkout.
 - Feature toggles
-  - `templatesBtn`/`openGovBtn` are enabled by server flags.
+  - `templatesBtn`/`openGovBtn` are enabled by server flags and included in dropdown order.
 
 ## Examples
 
@@ -186,7 +207,7 @@ Rules in plain English:
 - Notes can be attached/updated per row (audit/history stored on the server).
 
 UI outcomes:
-- If `approvals.enabled` is false, the Approvals button is hidden/disabled in the UI.
+- If `approvals.enabled` is false, the Approvals button is hidden/disabled in the dropdown.
 - If true, the UI shows the Approvals panel; the pill in the taskpane/web header can display `2/5 approved` using the summary.
 
 ## Action reference (what the button does in practice)
@@ -212,7 +233,7 @@ UI outcomes:
   - Server: receives DOCX upload via multer storage and consolidates to `default-document/current.docx`
 
 - Compile (exhibits/packet)
-  - Matrix: `compileBtn` flag
+  - Matrix entry: `compile` in dropdown order; `compileBtn` flag
   - Client: invokes compile; shows health status if LibreOffice isn’t configured
   - Server: compile health at `GET /api/health/compile` (LibreOffice `soffice --version`)
 
@@ -229,7 +250,7 @@ UI outcomes:
 ## Where this is implemented (for reference only)
 - Server logic: `api-server.js` computes flags (roles, checkout ownership, isFinal, feature toggles) and returns the matrix.
 - API surface: `state_matrix_api.js` contains helper/contract notes for the matrix (naming/shape utilities).
-- Client application: consumes the JSON and builds the UI/modal behavior for both web and add‑in.
+- Client application: `state-matrix-client.js` consumes the JSON and builds the dropdown/modal behavior for both web and add‑in.
 
 ## TL;DR
 Think of the matrix as “the single source of truth for what the UI should show right now.” If you change the server rules or feature flags, both clients update the same way. If you change the shared client renderer, both clients look and behave the same way.

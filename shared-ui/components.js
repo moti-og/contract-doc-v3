@@ -173,6 +173,63 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     });
   }
 
+  function exportWordDocumentAsBase64() {
+    return new Promise((resolve, reject) => {
+      try {
+        if (typeof Office === 'undefined' || !isWord()) return reject('not_word');
+        const sliceSize = 1024 * 64;
+        Office.context.document.getFileAsync(Office.FileType.Compressed, { sliceSize }, (result) => {
+          if (result.status !== Office.AsyncResultStatus.Succeeded) return reject('getFile_failed');
+          const file = result.value;
+          const sliceCount = file.sliceCount;
+          const slices = [];
+          let index = 0;
+          const getSlice = () => {
+            file.getSliceAsync(index, (res) => {
+              if (res.status !== Office.AsyncResultStatus.Succeeded) {
+                try { file.closeAsync(); } catch {}
+                return reject('getSlice_failed');
+              }
+              slices.push(res.value.data);
+              index++;
+              if (index < sliceCount) return getSlice();
+              try {
+                let total = 0;
+                for (const ab of slices) total += (ab && ab.byteLength) ? ab.byteLength : 0;
+                const out = new Uint8Array(total);
+                let offset = 0;
+                for (const ab of slices) { const u8 = new Uint8Array(ab); out.set(u8, offset); offset += u8.byteLength; }
+                const b64 = arrayBufferToBase64(out.buffer);
+                try { file.closeAsync(); } catch {}
+                resolve(b64);
+              } catch (e) {
+                try { file.closeAsync(); } catch {}
+                reject(e);
+              }
+            });
+          };
+          getSlice();
+        });
+      } catch (e) { reject(e); }
+    });
+  }
+
+  async function saveProgressWebViaDownload() {
+    // Try working first, then canonical
+    const pickUrls = [`${API_BASE}/documents/working/default.docx`, `${API_BASE}/documents/canonical/default.docx`];
+    let chosen = null;
+    for (const u of pickUrls) {
+      try { const h = await fetch(u, { method: 'HEAD' }); if (h.ok) { chosen = u; break; } } catch {}
+    }
+    if (!chosen) throw new Error('no_doc');
+    const res = await fetch(chosen);
+    if (!res.ok) throw new Error('download');
+    const buf = await res.arrayBuffer();
+    const b64 = arrayBufferToBase64(buf);
+    const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser, base64: b64 }) });
+    if (!r.ok) throw new Error('save-progress');
+  }
+
   async function openWordDocumentFromUrl(url) {
     try {
       const res = await fetch(url);
@@ -415,6 +472,22 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     add('Override Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/override`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('override OK'); await updateUI(); } catch(e){ log(`override ERR ${e.message}`);} }, !!config.buttons.overrideBtn);
     add('Checkin', async () => { try { await fetch(`${API_BASE}/api/v1/checkin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
     add('Cancel Checkout', async () => { try { await fetch(`${API_BASE}/api/v1/checkout/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('cancel OK'); await updateUI(); } catch(e){ log(`cancel ERR ${e.message}`);} }, !!config.buttons.cancelBtn);
+    add('Save Progress', async () => {
+      try {
+        if (isWord()) {
+          const b64 = await exportWordDocumentAsBase64();
+          const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser, base64: b64 }) });
+          if (!r.ok) throw new Error('save-progress');
+          log('save progress OK');
+          await updateUI();
+          return;
+        }
+        // Web: execute same save path (without check-in) by saving current server doc bytes
+        await saveProgressWebViaDownload();
+        log('save progress OK');
+        await updateUI();
+      } catch (e) { log(`save progress ERR ${e?.message || e}`); }
+    }, !!config.buttons.saveProgressBtn);
     // Send to Vendor (modal)
     add('Send to Vendor', async () => {
       try {

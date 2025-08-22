@@ -10,7 +10,8 @@
     "test": "jest --config jest.config.js",
     "e2e:install": "npx playwright install --with-deps",
     "e2e": "playwright test",
-    "stress": "powershell -NoProfile -ExecutionPolicy Bypass -File ..\\tools\\scripts\\run-stress-local.ps1 -Iterations 30 -DelayMs 200 -Users user1,user2"
+    "stress": "powershell -NoProfile -ExecutionPolicy Bypass -File ..\\tools\\scripts\\run-stress-local.ps1 -Iterations 30 -DelayMs 200 -Users user1,user2",
+    "vendor:react": "node scripts/vendor-react.js"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +25,8 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "@playwright/test": "^1.46.1"
+    "@playwright/test": "^1.46.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
