@@ -220,9 +220,31 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     chatRow.append(chatInputEl, chatSend);
     assistantSection.append(chatBoxEl, chatRow);
 
+    // Notifications controls (copy)
+    const notifControls = el('div', { style: { display: 'flex', justifyContent: 'flex-end' } }, [
+      (function(){
+        const btn = el('button', { class: 'ms-Button', onclick: async () => {
+          try {
+            const text = statusBox?.textContent || '';
+            if (navigator?.clipboard?.writeText) {
+              await navigator.clipboard.writeText(text);
+            } else {
+              const ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select();
+              try { document.execCommand('copy'); } catch {}
+              document.body.removeChild(ta);
+            }
+            log('copied notifications to clipboard');
+          } catch (e) {
+            log(`copy failed ${e?.message || e}`);
+          }
+        } }, [el('span', { class: 'ms-Button-label' }, ['Copy'])]);
+        return btn;
+      })()
+    ]);
     statusBox = el('div', { style: { fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', maxHeight: '160px', overflow: 'auto' } });
 
-    container.append(header, docRow, chipRow, card, statusBox, assistantSection, exhibitsSection, approvalsSection);
+    container.append(header, docRow, chipRow, card, notifControls, statusBox, assistantSection, exhibitsSection, approvalsSection);
     root.append(container);
     initialized = true;
     connectSSE();
