@@ -611,17 +611,26 @@ app.get('/api/v1/events', (req, res) => {
   req.on('close', () => { sseClients.delete(res); clearInterval(keepalive); });
 });
 
-// HTTPS preferred; fallback to HTTP if certs missing
+// HTTPS preferred; try Office dev certs, then PFX, else fail (unless ALLOW_HTTP=true)
 function tryCreateHttpsServer() {
   try {
-    // Prefer PFX if available (works without openssl)
+    // 1) Office dev certs (shared with add-in 4000)
+    try {
+      // Lazy require to keep runtime optional
+      const devCerts = require('office-addin-dev-certs');
+      const httpsOptions = devCerts && devCerts.getHttpsServerOptions ? devCerts.getHttpsServerOptions() : null;
+      if (httpsOptions && httpsOptions.key && httpsOptions.cert) {
+        return https.createServer({ key: httpsOptions.key, cert: httpsOptions.cert, ca: httpsOptions.ca }, app);
+      }
+    } catch { /* ignore; may not be installed */ }
+    // 2) PFX if available
     const pfxPath = process.env.SSL_PFX_PATH || path.join(rootDir, 'server', 'config', 'dev-cert.pfx');
     const pfxPass = process.env.SSL_PFX_PASS || 'password';
     if (fs.existsSync(pfxPath)) {
       const opts = { pfx: fs.readFileSync(pfxPath), passphrase: pfxPass };
       return https.createServer(opts, app);
     }
-    // Fallback to PEM key/cert
+    // 3) PEM fallback
     const keyPath = process.env.SSL_KEY_PATH || path.join(rootDir, 'server', 'config', 'dev-key.pem');
     const certPath = process.env.SSL_CERT_PATH || path.join(rootDir, 'server', 'config', 'dev-cert.pem');
     if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
@@ -629,7 +638,8 @@ function tryCreateHttpsServer() {
       return https.createServer(opts, app);
     }
   } catch { /* ignore */ }
-  return null;
+  if (String(process.env.ALLOW_HTTP || '').toLowerCase() === 'true') return null;
+  throw new Error('No HTTPS certificate available. Install Office dev certs or provide server/config/dev-cert.pfx. Set ALLOW_HTTP=true to use HTTP for dev only.');
 }
 
 const httpsServer = tryCreateHttpsServer();
@@ -643,8 +653,8 @@ if (httpsServer) {
 } else {
   serverInstance = http.createServer(app);
   serverInstance.listen(APP_PORT, () => {
-    console.warn(`Dev cert not found. HTTP server running on http://localhost:${APP_PORT}`);
-    console.warn('Set SSL_KEY_PATH and SSL_CERT_PATH or place dev certs under server/config to enable HTTPS.');
+    console.warn(`ALLOW_HTTP=true enabled. HTTP server running on http://localhost:${APP_PORT}`);
+    console.warn('Install Office dev certs (preferred) or place dev-cert.pfx under server/config to enable HTTPS.');
   });
 }
 
