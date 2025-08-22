@@ -46,6 +46,32 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let chatBoxEl;
   let chatInputEl;
   let buttonsGrid;
+  
+  function getModeForRole(role) {
+    const r = (role || '').toLowerCase();
+    if (r === 'viewer') return 'viewing';
+    if (r === 'suggestor' || r === 'vendor') return 'suggesting';
+    return 'editing';
+  }
+
+  function setEditorModeForRole(role) {
+    const mode = getModeForRole(role);
+    if (detectPlatform() === 'web') {
+      try { window.dispatchEvent(new CustomEvent('superdoc:set-mode', { detail: { mode } })); } catch {}
+    } else if (isWord()) {
+      // Best-effort: try to hint mode in Word; APIs vary by requirement set, so guard everything
+      try {
+        Word.run(async (context) => {
+          // Suggesting: attempt to enable track changes via built-in command
+          if (mode === 'suggesting') {
+            try { Office.context.ui.displayDialogAsync && console.log('Suggesting mode requested'); } catch {}
+          }
+          // Viewing: we could protect the doc; leave as a no-op prototype for now
+          await context.sync();
+        });
+      } catch {}
+    }
+  }
 
   const log = (m) => {
     if (!statusBox) return;
@@ -327,6 +353,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       }
       if (userCardNameEl) userCardNameEl.textContent = currentUser;
       if (userRolePillEl) userRolePillEl.textContent = (currentRole || 'editor').toUpperCase();
+      setEditorModeForRole(currentRole);
       setButtons(config);
     } catch (e) {
       log(`matrix ERR ${e?.message || e}`);

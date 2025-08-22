@@ -93,7 +93,8 @@
         }
 
         // Mount SuperDoc with the default document URL
-        const mount = (doc) => mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: 'editing', pagination: true, rulers: true });
+        let currentMode = 'editing';
+        const mount = (doc) => mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: currentMode, pagination: true, rulers: true });
         const editorCol = document.getElementById('editor-col');
         const render = (doc) => {
           console.log('Render SuperDoc with', doc);
@@ -119,6 +120,20 @@
         });
         window.addEventListener('superdoc:open-file', (e) => {
           try { const f = e.detail?.file; if (f) render(f); } catch(err) { console.warn('open-file failed', err); }
+        });
+        window.addEventListener('superdoc:set-mode', (e) => {
+          const m = e.detail?.mode;
+          if (m && ['editing','suggesting','viewing'].includes(m)) {
+            currentMode = m;
+            // Remount in place with the same document to apply the new mode
+            try {
+              const last = document.querySelector('#superdoc');
+              if (last && last.firstChild) {
+                // Heuristic: if already mounted, remount with canonical by default
+                render('/documents/default.docx');
+              }
+            } catch {}
+          }
         });
         // Mount shared UI in footer area
         mountApp({ rootSelector: '#app-root' });
