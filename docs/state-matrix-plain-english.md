@@ -76,7 +76,7 @@ Notes:
 - `checkinBtn` – Check in (when the current user has it checked out).
 - `cancelBtn` – Cancel a checkout (when the current user has it checked out).
 - `saveProgressBtn` – Save progress during checkout if supported.
-- `overrideBtn` – Force checkout (admin/editor capability; usually hidden for vendors).
+- `overrideBtn` – Clear checkout (admin/editor capability; reverts to Available; usually hidden for vendors).
 - `sendVendorBtn` – Open “Send to Vendor” flow (only for editors on web; hidden for vendors).
 - `replaceDefaultBtn` – Replace the default document (upload in viewer/add‑in).
 - `compileBtn` – Compile exhibits/packet.
@@ -104,9 +104,10 @@ The client filters this list to only include buttons whose flags are true.
 - Checkout logic
   - If the document is not checked out: show `checkoutBtn` (for roles with `checkout: true`), hide check‑in/cancel.
   - If checked out by the current editor: show `checkinBtn`/`cancelBtn` and editor‑only controls.
-  - If checked out by someone else: hide override for vendors; typically hide check‑in/cancel; show a banner message.
+  - If checked out by someone else: hide override for vendors; typically hide check‑in/cancel; show a banner message; override (if allowed) clears checkout (does not transfer ownership).
 - Finalize logic
   - `finalizeBtn` requires editor role and self‑checkout; when finalizing, checkout is cleared.
+  - When final, `checkoutBtn`, `checkinBtn`, `cancelBtn`, and `overrideBtn` are hidden/disabled; server endpoints return 409 for checkout/override.
   - `unfinalizeBtn` is available to editors even without checkout.
 - Feature toggles
   - `templatesBtn`/`openGovBtn` are enabled by server flags and included in dropdown order.
