@@ -46,9 +46,11 @@ module.exports = async (env, options) => {
               sources: {
                 urlFilter: (attr, value) => {
                   if (typeof value !== 'string') return true;
-                  if (value.startsWith('/static/')) return false;
-                  if (value.startsWith('https://localhost:4001/')) return false;
-                  return true;
+                  // Safer default: exclude ALL remote and root-absolute URLs from bundling;
+                  // let the browser fetch them at runtime via devServer proxy to 4001.
+                  if (/^https?:\/\//i.test(value)) return false; // remote
+                  if (value.startsWith('/')) return false;          // absolute
+                  return true;                                      // only bundle relative paths
                 },
               },
             },
