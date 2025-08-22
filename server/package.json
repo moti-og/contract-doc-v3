@@ -10,7 +10,7 @@
     "test": "jest --config jest.config.js",
     "e2e:install": "npx playwright install --with-deps",
     "e2e": "playwright test",
-    "stress": "powershell -NoProfile -ExecutionPolicy Bypass -File ..\\tools\\scripts\\sync-stress.ps1 -Iterations 30 -DelayMs 200 -Users user1,user2"
+    "stress": "powershell -NoProfile -ExecutionPolicy Bypass -File ..\\tools\\scripts\\run-stress-local.ps1 -Iterations 30 -DelayMs 200 -Users user1,user2"
   },
   "keywords": [],
   "author": "",
