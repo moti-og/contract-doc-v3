@@ -171,7 +171,14 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     actionsSelectEl = el('select', { onchange: async (e) => {
       const val = e.target.value; e.target.value = '';
       try {
-        if (val === 'finalize') { await fetch('/api/v1/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
+        if (val === 'viewLatest') {
+          if (isWord()) {
+            await openWordDocumentFromUrl('/documents/canonical/default.docx');
+          } else {
+            window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/canonical/default.docx' } }));
+          }
+        }
+        else if (val === 'finalize') { await fetch('/api/v1/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
         else if (val === 'unfinalize') { await fetch('/api/v1/unfinalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
         else if (val === 'checkout') { await fetch('/api/v1/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
         else if (val === 'checkin') { await fetch('/api/v1/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
@@ -306,6 +313,8 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       const opt = (value, label, show) => { if (show) actionsSelectEl.append(el('option', { value }, [label])); };
       actionsSelectEl.innerHTML = '';
       actionsSelectEl.append(el('option', { value: '' }, ['--']));
+      // First actionable option: View Latest
+      opt('viewLatest', 'View Latest (canonical)', true);
       opt('finalize', 'Finalize', !!config.buttons.finalizeBtn);
       opt('unfinalize', 'Unfinalize', !!config.buttons.unfinalizeBtn);
       opt('checkout', 'Checkout', !!config.buttons.checkoutBtn);
