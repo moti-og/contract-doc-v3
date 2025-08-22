@@ -161,12 +161,9 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     userSelectEl = userSel;
     header.append(connectionBadge, lastEventBadge);
 
-    // User row: name, fixed role pill, and switch user menu
-    userCardNameEl = el('div', { style: { fontWeight: '600' } }, [currentUser]);
-    userRolePillEl = el('span', { style: { marginLeft: '8px', background: '#fde68a', color: '#92400e', border: '1px solid #fbbf24', borderRadius: '999px', padding: '2px 6px', fontSize: '11px', fontWeight: '700' } }, [currentRole.toUpperCase()]);
-    const userRow = el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%' } }, [
-      el('span', { style: { color: '#6b7280', fontSize: '12px' } }, ['User:']),
-      userCardNameEl,
+    // User row: role badge + user dropdown
+    userRolePillEl = el('span', { style: { background: '#fde68a', color: '#92400e', border: '1px solid #fbbf24', borderRadius: '999px', padding: '2px 8px', fontSize: '11px', fontWeight: '700' } }, [currentRole.toUpperCase()]);
+    const userRow = el('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', width: '100%' } }, [
       userRolePillEl,
       userSel,
     ]);
