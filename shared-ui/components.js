@@ -50,6 +50,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let reconnectAttempt = 0;
   let userSelectEl;
   let statusChipEl;
+  let chipRowEl;
   let userCardNameEl;
   let userRolePillEl;
   let docLinkEl;
@@ -241,9 +242,10 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     const docRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
     docLinkEl = el('a', { href: `${API_BASE}/documents/default.docx`, target: '_blank', style: { color: '#2563eb', fontWeight: '600', textDecoration: 'none' } }, ['current.docx']);
     docRow.append(docLinkEl);
-    const chipRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
-    statusChipEl = el('div', { style: { marginTop: '6px', background: '#e0edff', color: '#1e40af', border: '1px solid #c7dbff', borderRadius: '6px', padding: '8px 12px', fontWeight: '600', width: '90%', textAlign: 'center' } }, ['Available for check-out']);
-    chipRow.append(statusChipEl);
+    const chipRow = el('div', { id: 'chip-row', style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' } });
+    chipRowEl = chipRow;
+    statusChipEl = el('div', { style: { marginTop: '6px', background: '#e0edff', color: '#1e40af', border: '1px solid #c7dbff', borderRadius: '6px', padding: '4px 8px', fontWeight: '600', width: '90%', textAlign: 'center' } }, ['Available for check-out']);
+    chipRowEl.append(statusChipEl);
 
     const section = (title) => el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid #eee', borderRadius: '6px', padding: '8px 10px', background: '#fff' } }, [
       el('div', { style: { fontWeight: '600' } }, [title]),
@@ -455,7 +457,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       }
       // Right-pane banner from server
       if (statusChipEl) {
-        const b = (config && config.banner) ? config.banner : {};
+        let b = (config && config.banner) ? config.banner : {};
         statusChipEl.textContent = b.title && b.message ? `${b.title}: ${b.message}` : (b.title || statusChipEl.textContent);
         const theme = await ensureTheme();
         try {
@@ -467,6 +469,22 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
           }
         } catch {}
       }
+      // Render any server-supplied banners in sequence (no client logic)
+      try {
+        const list = Array.isArray(config?.banners) ? config.banners : [];
+        // Remove previous extras (keep primary)
+        const row = chipRowEl || statusChipEl?.parentElement;
+        if (row) {
+          Array.from(row.querySelectorAll('.extra-banner')).forEach(n => n.remove());
+          for (let i = 1; i < list.length; i++) {
+            const b = list[i] || {};
+            const extraEl = el('div', { class: 'extra-banner', style: { marginTop: '0', background: '#eef2ff', color: '#1e3a8a', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '3px 8px', fontWeight: '600', width: '90%', textAlign: 'center' } }, [
+              (b.title && b.message) ? `${b.title}: ${b.message}` : (b.title || '')
+            ]);
+            row.appendChild(extraEl);
+          }
+        }
+      } catch {}
       if (userCardNameEl) userCardNameEl.textContent = currentUser;
       if (userRolePillEl) userRolePillEl.textContent = (currentRole || 'editor').toUpperCase();
       setEditorModeForRole(currentRole);

@@ -104,7 +104,7 @@ function buildBanner({ isFinal, isCheckedOut, isOwner, checkedOutBy }) {
     if (isOwner) return { state: 'checked_out_self', title: 'Checked out by you', message: 'You can edit. Remember to check in.' };
     return { state: 'checked_out_other', title: 'Checked out', message: `Checked out by ${checkedOutBy}` };
   }
-  return { state: 'available', title: 'Available to check out', message: 'No one is editing this document.' };
+  return { state: 'available', title: 'Available to check out', message: 'Redline it up baby!' };
 }
 
 // SSE clients
@@ -317,6 +317,14 @@ app.get('/api/v1/state-matrix', (req, res) => {
         : { title: 'Draft', message: 'This document is in draft.' }
     },
     banner,
+    // Ordered banners for rendering in sequence on the client
+    banners: (() => {
+      const list = [banner];
+      if (String(derivedRole).toLowerCase() === 'viewer') {
+        list.push({ state: 'view_only', title: 'View Only', message: 'You can look but do not touch!' });
+      }
+      return list;
+    })(),
     checkoutStatus: { isCheckedOut, checkedOutUserId: serverState.checkedOutBy },
     viewerMessage: isCheckedOut
       ? { type: isOwner ? 'info' : 'warning', text: isOwner ? `Checked out by you` : `Checked out by ${serverState.checkedOutBy}` }

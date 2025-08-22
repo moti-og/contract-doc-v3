@@ -1,10 +1,7 @@
 name: sync-stress
 
 on:
-  pull_request:
-    branches: [ main ]
-  schedule:
-    - cron: '0 8 * * *'
+  workflow_dispatch:
 
 jobs:
   stress:

@@ -128,14 +128,13 @@ describe('API', () => {
     await postJson('/api/v1/checkin', { userId: a }); // cleanup
   });
 
-  test('cannot unfinalize when checked out by another user', async () => {
+  test('while finalized, checkout is blocked and unfinalize succeeds', async () => {
     await ensureFinalized();
-    await ensureNotCheckedOut();
     const a = 'jest-a', b = 'jest-b';
-    await postJson('/api/v1/checkout', { userId: a });
+    const c = await postJson('/api/v1/checkout', { userId: a });
+    expect(c.status).toBe(409);
     const r = await postJson('/api/v1/unfinalize', { userId: b });
-    expect(r.status).toBe(409);
-    await postJson('/api/v1/checkin', { userId: a }); // cleanup
+    expect(r.status).toBe(200);
     await ensureUnfinalized();
   });
 });
