@@ -37,6 +37,13 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let lastEventBadge;
   let reconnectAttempt = 0;
   let userSelectEl;
+  let actionsSelectEl;
+  let statusChipEl;
+  let userCardNameEl;
+  let userRolePillEl;
+  let docLinkEl;
+  let chatBoxEl;
+  let chatInputEl;
 
   const log = (m) => {
     if (!statusBox) return;
@@ -130,14 +137,50 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     ]);
     header.append(connectionBadge, lastEventBadge, el('span', {}, ['User: ']), userSel, el('span', {}, ['Role: ']), roleSel);
 
+    // Document link and status chip
+    const docRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
+    docLinkEl = el('a', { href: '/documents/default.docx', target: '_blank', style: { color: '#2563eb', fontWeight: '600', textDecoration: 'none' } }, ['current.docx']);
+    docRow.append(docLinkEl);
+    const chipRow = el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
+    statusChipEl = el('div', { style: { marginTop: '6px', background: '#e0edff', color: '#1e40af', border: '1px solid #c7dbff', borderRadius: '6px', padding: '8px 12px', fontWeight: '600', width: '90%', textAlign: 'center' } }, ['Available for check-out']);
+    chipRow.append(statusChipEl);
+
     // Section helper
     const section = (title) => el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid #eee', borderRadius: '6px', padding: '8px 10px', background: '#fff' } }, [
       el('div', { style: { fontWeight: '600' } }, [title]),
     ]);
 
+    // User card (name + role pill + simple badges)
+    const card = section('');
+    card.firstChild.remove();
+    const cardInner = el('div', { style: { background: '#fff7db', border: '1px solid #f5e3a3', borderRadius: '8px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' } });
+    const cardTop = el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } });
+    cardTop.append(el('div', { style: { color: '#6b7280', fontSize: '12px' } }, ['User: ']));
+    userCardNameEl = el('div', { style: { fontWeight: '600' } }, [currentUser]);
+    userRolePillEl = el('span', { style: { marginLeft: '8px', background: '#fde68a', color: '#92400e', border: '1px solid #fbbf24', borderRadius: '999px', padding: '2px 6px', fontSize: '11px', fontWeight: '700' } }, [currentRole.toUpperCase()]);
+    cardTop.append(userCardNameEl, userRolePillEl);
+    const switchRow = el('div', {}, [
+      el('div', { style: { fontSize: '12px', color: '#6b7280', marginBottom: '4px' } }, ['Switch user:']),
+      userSel,
+    ]);
+    cardInner.append(cardTop, switchRow);
+    card.append(cardInner);
+
     actionsSection = section('Actions');
+    // Actions dropdown (matches mock)
+    actionsSelectEl = el('select', { onchange: async (e) => {
+      const val = e.target.value; e.target.value = '';
+      try {
+        if (val === 'finalize') { await fetch('/api/v1/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
+        else if (val === 'unfinalize') { await fetch('/api/v1/unfinalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
+        else if (val === 'checkout') { await fetch('/api/v1/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
+        else if (val === 'checkin') { await fetch('/api/v1/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
+        else if (val === 'snapshot') { await fetch('/api/v1/document/snapshot', { method: 'POST' }); }
+        else if (val === 'revert') { await doPost('/api/v1/document/revert'); }
+      } catch (err) { log(`action ${val} ERR ${err?.message || err}`); }
+    } }, [ el('option', { value: '' }, ['--']) ]);
     buttonsRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
-    actionsSection.append(buttonsRow);
+    actionsSection.append(actionsSelectEl, buttonsRow);
 
     exhibitsSection = section('Exhibits');
     const exHeader = el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } });
@@ -164,9 +207,18 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     approvalsSection = section('Approvals (stub)');
     approvalsSection.append(el('div', {}, ['No approvers configured.']));
 
+    // Assistant chat section
+    const assistantSection = section('Assistant');
+    chatBoxEl = el('div', { style: { border: '1px solid #ddd', borderRadius: '6px', padding: '8px', height: '120px', overflow: 'auto', background: '#fff' } }, ["Hi, I'm OG Assist. How can I help you?"]);
+    const chatRow = el('div', { style: { display: 'flex', gap: '8px' } });
+    chatInputEl = el('input', { type: 'text', placeholder: 'Type a message...', style: { flex: '1', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '4px' } });
+    const chatSend = el('button', { class: 'ms-Button', onclick: async () => { const t = chatInputEl.value.trim(); if (!t) return; chatBoxEl.append(el('div', { style: { marginTop: '6px' } }, [t])); chatInputEl.value=''; try { await fetch('/api/v1/events/client', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'chat', payload: { text: t }, userId: currentUser, role: currentRole, platform: detectPlatform() }) }); } catch {} } }, [el('span', { class: 'ms-Button-label' }, ['Send'])]);
+    chatRow.append(chatInputEl, chatSend);
+    assistantSection.append(chatBoxEl, chatRow);
+
     statusBox = el('div', { style: { fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', maxHeight: '160px', overflow: 'auto' } });
 
-    container.append(header, actionsSection, exhibitsSection, approvalsSection, statusBox);
+    container.append(header, docRow, chipRow, card, actionsSection, exhibitsSection, approvalsSection, assistantSection, statusBox);
     root.append(container);
     initialized = true;
     connectSSE();
@@ -231,55 +283,36 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
   function setButtons(config) {
     buttonsRow.innerHTML = '';
-    // Word-only document actions should always be present
+    // Keep doc open buttons beneath the dropdown
     if (isWord()) {
+      const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
+      const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
       const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => openWordDocumentFromUrl('/documents/canonical/default.docx') }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
-      const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
-      const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
-      filePick.onchange = async (e) => {
-        const f = e.target.files?.[0];
-        if (!f) return;
-        try {
-          const buf = await f.arrayBuffer();
-          const b64 = arrayBufferToBase64(buf);
-          await openWordDocumentFromBase64(b64);
-          log(`Opened ${f.name}`);
-        } catch (err) {
-          log(`open file ERR ${err?.message || err}`);
-        } finally {
-          e.target.value = '';
-        }
-      };
-      buttonsRow.append(viewLatestBtn, openNewBtn, filePick);
+      filePick.onchange = async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const buf = await f.arrayBuffer(); const b64 = arrayBufferToBase64(buf); await openWordDocumentFromBase64(b64); log(`Opened ${f.name}`); } catch (err) { log(`open file ERR ${err?.message || err}`); } finally { e.target.value = ''; } };
+      buttonsRow.append(openNewBtn, viewLatestBtn, filePick);
     } else {
-      // Web: ask host page to swap SuperDoc document
-      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/canonical/default.docx' } })) }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
       const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
       const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
-      filePick.onchange = async (e) => {
-        const f = e.target.files?.[0];
-        if (!f) return;
-        try {
-          window.dispatchEvent(new CustomEvent('superdoc:open-file', { detail: { file: f } }));
-          log(`Opened ${f.name} in web`);
-        } catch (err) {
-          log(`open file ERR ${err?.message || err}`);
-        } finally {
-          e.target.value = '';
-        }
-      };
-      buttonsRow.append(viewLatestBtn, openNewBtn, filePick);
+      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/canonical/default.docx' } })) }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
+      filePick.onchange = async (e) => { const f = e.target.files?.[0]; if (!f) return; try { window.dispatchEvent(new CustomEvent('superdoc:open-file', { detail: { file: f } })); log(`Opened ${f.name} in web`); } catch (err) { log(`open file ERR ${err?.message || err}`); } finally { e.target.value = ''; } };
+      buttonsRow.append(openNewBtn, viewLatestBtn, filePick);
     }
     const addBtn = (label, onClick, visible = true) => {
       if (!visible) return;
       buttonsRow.append(el('button', { class: 'ms-Button', onclick: onClick }, [el('span', { class: 'ms-Button-label' }, [label]) ]));
     };
-    addBtn('Finalize', async () => { try { await fetch('/api/v1/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('finalize OK'); await updateUI(); } catch(e){ log(`finalize ERR ${e.message}`);} }, !!config.buttons.finalizeBtn);
-    addBtn('Unfinalize', async () => { try { await fetch('/api/v1/unfinalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('unfinalize OK'); await updateUI(); } catch(e){ log(`unfinalize ERR ${e.message}`);} }, !!config.buttons.unfinalizeBtn);
-    addBtn('Checkout', async () => { try { await fetch('/api/v1/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkout OK'); await updateUI(); } catch(e){ log(`checkout ERR ${e.message}`);} }, !!config.buttons.checkoutBtn);
-    addBtn('Checkin', async () => { try { await fetch('/api/v1/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
-    addBtn('Revert to Canonical', async () => { try { await doPost('/api/v1/document/revert'); log('revert OK'); } catch(e){ log(`revert ERR ${e.message}`);} }, true);
-    addBtn('Snapshot', async () => { try { const r = await fetch('/api/v1/document/snapshot', { method: 'POST' }); if (!r.ok) throw new Error('snapshot'); const j = await r.json(); log(`snapshot OK ${j.path || ''}`); } catch(e){ log(`snapshot ERR ${e.message}`);} }, true);
+    // Move core actions into dropdown
+    if (actionsSelectEl) {
+      const opt = (value, label, show) => { if (show) actionsSelectEl.append(el('option', { value }, [label])); };
+      actionsSelectEl.innerHTML = '';
+      actionsSelectEl.append(el('option', { value: '' }, ['--']));
+      opt('finalize', 'Finalize', !!config.buttons.finalizeBtn);
+      opt('unfinalize', 'Unfinalize', !!config.buttons.unfinalizeBtn);
+      opt('checkout', 'Checkout', !!config.buttons.checkoutBtn);
+      opt('checkin', 'Checkin', !!config.buttons.checkinBtn);
+      opt('snapshot', 'Snapshot', true);
+      opt('revert', 'Revert to Canonical', true);
+    }
   }
 
   async function updateUI() {
@@ -295,6 +328,23 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         }
         badge.textContent = `doc: ${currentDocumentId}`;
       }
+      // Update status chip and user card
+      if (statusChipEl) {
+        const cs = config.checkoutStatus || { isCheckedOut: false };
+        if (!cs.isCheckedOut) {
+          statusChipEl.textContent = 'Available for check-out';
+          statusChipEl.style.background = '#e0edff';
+          statusChipEl.style.color = '#1e40af';
+          statusChipEl.style.borderColor = '#c7dbff';
+        } else {
+          statusChipEl.textContent = `Checked out by ${cs.checkedOutUserId}`;
+          statusChipEl.style.background = '#fff7ed';
+          statusChipEl.style.color = '#9a3412';
+          statusChipEl.style.borderColor = '#fed7aa';
+        }
+      }
+      if (userCardNameEl) userCardNameEl.textContent = currentUser;
+      if (userRolePillEl) userRolePillEl.textContent = (currentRole || 'editor').toUpperCase();
       setButtons(config);
     } catch (e) {
       log(`matrix ERR ${e?.message || e}`);
