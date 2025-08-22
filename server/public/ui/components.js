@@ -45,6 +45,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let docLinkEl;
   let chatBoxEl;
   let chatInputEl;
+  let buttonsGrid;
 
   const log = (m) => {
     if (!statusBox) return;
@@ -161,31 +162,11 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
       el('div', { style: { fontSize: '12px', color: '#6b7280', marginBottom: '4px' } }, ['Switch user:']),
       userSel,
     ]);
-    cardInner.append(cardTop, switchRow);
+    // Buttons grid container (2 columns on narrow panes)
+    buttonsGrid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '8px' } });
+    cardInner.append(cardTop, switchRow, buttonsGrid);
     card.append(cardInner);
-
-    actionsSection = section('Actions');
-    // Actions dropdown (matches mock)
-    actionsSelectEl = el('select', { onchange: async (e) => {
-      const val = e.target.value; e.target.value = '';
-      try {
-        if (val === 'viewLatest') {
-          if (isWord()) {
-            await openWordDocumentFromUrl('/documents/canonical/default.docx');
-          } else {
-            window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/canonical/default.docx' } }));
-          }
-        }
-        else if (val === 'finalize') { await fetch('/api/v1/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
-        else if (val === 'unfinalize') { await fetch('/api/v1/unfinalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
-        else if (val === 'checkout') { await fetch('/api/v1/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
-        else if (val === 'checkin') { await fetch('/api/v1/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); }
-        else if (val === 'snapshot') { await fetch('/api/v1/document/snapshot', { method: 'POST' }); }
-        else if (val === 'revert') { await doPost('/api/v1/document/revert'); }
-      } catch (err) { log(`action ${val} ERR ${err?.message || err}`); }
-    } }, [ el('option', { value: '' }, ['--']) ]);
-    buttonsRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
-    actionsSection.append(actionsSelectEl, buttonsRow);
+    // We no longer render the old Actions section with a dropdown; buttonsGrid is used instead
 
     exhibitsSection = section('Exhibits');
     const exHeader = el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } });
@@ -287,39 +268,33 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   }
 
   function setButtons(config) {
-    buttonsRow.innerHTML = '';
-    // Keep doc open buttons beneath the dropdown
+    if (buttonsGrid) buttonsGrid.innerHTML = '';
+    if (buttonsRow) buttonsRow.innerHTML = '';
+    const add = (label, onclick, show = true) => {
+      if (!show) return;
+      const btn = el('button', { class: 'ms-Button', onclick }, [el('span', { class: 'ms-Button-label' }, [label])]);
+      if (buttonsGrid) buttonsGrid.append(btn); else buttonsRow.append(btn);
+    };
+    // Doc open
     if (isWord()) {
       const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
-      const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
-      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => openWordDocumentFromUrl('/documents/canonical/default.docx') }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
+      add('Open New Document', () => filePick.click(), true);
+      add('View Latest', () => openWordDocumentFromUrl('/documents/canonical/default.docx'), true);
       filePick.onchange = async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const buf = await f.arrayBuffer(); const b64 = arrayBufferToBase64(buf); await openWordDocumentFromBase64(b64); log(`Opened ${f.name}`); } catch (err) { log(`open file ERR ${err?.message || err}`); } finally { e.target.value = ''; } };
-      buttonsRow.append(openNewBtn, viewLatestBtn, filePick);
+      if (buttonsGrid) buttonsGrid.append(filePick); else buttonsRow.append(filePick);
     } else {
       const filePick = el('input', { type: 'file', accept: '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', style: { display: 'none' } });
-      const openNewBtn = el('button', { class: 'ms-Button', onclick: () => filePick.click() }, [el('span', { class: 'ms-Button-label' }, ['Open New Document'])]);
-      const viewLatestBtn = el('button', { class: 'ms-Button', onclick: () => window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/canonical/default.docx' } })) }, [el('span', { class: 'ms-Button-label' }, ['View Latest'])]);
+      add('Open New Document', () => filePick.click(), true);
+      add('View Latest', () => window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: '/documents/canonical/default.docx' } })), true);
       filePick.onchange = async (e) => { const f = e.target.files?.[0]; if (!f) return; try { window.dispatchEvent(new CustomEvent('superdoc:open-file', { detail: { file: f } })); log(`Opened ${f.name} in web`); } catch (err) { log(`open file ERR ${err?.message || err}`); } finally { e.target.value = ''; } };
-      buttonsRow.append(openNewBtn, viewLatestBtn, filePick);
+      if (buttonsGrid) buttonsGrid.append(filePick); else buttonsRow.append(filePick);
     }
-    const addBtn = (label, onClick, visible = true) => {
-      if (!visible) return;
-      buttonsRow.append(el('button', { class: 'ms-Button', onclick: onClick }, [el('span', { class: 'ms-Button-label' }, [label]) ]));
-    };
-    // Move core actions into dropdown
-    if (actionsSelectEl) {
-      const opt = (value, label, show) => { if (show) actionsSelectEl.append(el('option', { value }, [label])); };
-      actionsSelectEl.innerHTML = '';
-      actionsSelectEl.append(el('option', { value: '' }, ['--']));
-      // First actionable option: View Latest
-      opt('viewLatest', 'View Latest (canonical)', true);
-      opt('finalize', 'Finalize', !!config.buttons.finalizeBtn);
-      opt('unfinalize', 'Unfinalize', !!config.buttons.unfinalizeBtn);
-      opt('checkout', 'Checkout', !!config.buttons.checkoutBtn);
-      opt('checkin', 'Checkin', !!config.buttons.checkinBtn);
-      opt('snapshot', 'Snapshot', true);
-      opt('revert', 'Revert to Canonical', true);
-    }
+    add('Finalize', async () => { try { await fetch('/api/v1/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('finalize OK'); await updateUI(); } catch(e){ log(`finalize ERR ${e.message}`);} }, !!config.buttons.finalizeBtn);
+    add('Unfinalize', async () => { try { await fetch('/api/v1/unfinalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('unfinalize OK'); await updateUI(); } catch(e){ log(`unfinalize ERR ${e.message}`);} }, !!config.buttons.unfinalizeBtn);
+    add('Checkout', async () => { try { await fetch('/api/v1/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkout OK'); await updateUI(); } catch(e){ log(`checkout ERR ${e.message}`);} }, !!config.buttons.checkoutBtn);
+    add('Checkin', async () => { try { await fetch('/api/v1/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser }) }); log('checkin OK'); await updateUI(); } catch(e){ log(`checkin ERR ${e.message}`);} }, !!config.buttons.checkinBtn);
+    add('Revert to Canonical', async () => { try { await doPost('/api/v1/document/revert'); log('revert OK'); } catch(e){ log(`revert ERR ${e.message}`);} }, true);
+    add('Snapshot', async () => { try { const r = await fetch('/api/v1/document/snapshot', { method: 'POST' }); if (!r.ok) throw new Error('snapshot'); const j = await r.json(); log(`snapshot OK ${j.path || ''}`); } catch(e){ log(`snapshot ERR ${e.message}`);} }, true);
   }
 
   async function updateUI() {
