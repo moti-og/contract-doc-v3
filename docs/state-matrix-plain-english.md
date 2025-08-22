@@ -52,10 +52,10 @@ The server returns an object (fields may be omitted when not relevant):
   },
   "finalize": {
     "isFinal": false,
-    "banner": { "title": "…", "message": "…" },
     "confirm": { "title": "Finalize?", "message": "…" },
     "unfinalize": { "title": "Unlock?", "message": "…" }
   },
+  "banner": { "state": "available|checked_out_self|checked_out_other|final", "title": "…", "message": "…" },
   "approvals": { "enabled": true },
   "checkoutStatus": { "isCheckedOut": false, "checkedOutUserId": null },
   "viewerMessage": { "type": "info", "text": "…" }
