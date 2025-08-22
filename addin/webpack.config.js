@@ -105,7 +105,7 @@ module.exports = async (env, options) => {
       port: process.env.npm_package_config_dev_server_port || 4000,
       proxy: [
         {
-          context: ['/static', '/documents', '/api', '/collab'],
+          context: ['/static', '/documents', '/api', '/collab', '/ui', '/vendor', '/web'],
           target: 'https://localhost:4001',
           changeOrigin: true,
           secure: false,
