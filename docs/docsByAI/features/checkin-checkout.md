@@ -76,7 +76,7 @@ Rules (summarized from implementation):
 - `checkoutBtn`: shown for roles that allow checkout when not checked out.
 - `overrideBtn`: shown for roles with `override: true` when someone else has it checked out.
 - `checkinBtn` and `cancelBtn`: shown only for the owner.
-- `overrideBtn`: shown for roles with `override: true` when someone else owns the checkout.
+- `overrideBtn`: shown for roles with `override: true` when someone else owns the checkout. Action clears `checkedOutBy` (revert to Available), it does not transfer ownership.
 - `finalizeBtn`: enabled for editors when not final AND (not checked out OR owner); on finalize, checkout is cleared.
 - `unfinalizeBtn`: enabled for editors when final.
 

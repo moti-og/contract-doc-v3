@@ -477,23 +477,16 @@ app.post('/api/v1/checkout/override', (req, res) => {
   const canOverride = !!(roleMap[derivedRole] && roleMap[derivedRole].override);
   if (serverState.isFinal) return res.status(409).json({ error: 'Finalized' });
   if (!canOverride) return res.status(403).json({ error: 'Forbidden' });
-  // Allow override only when someone else has checkout
-  if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
-    serverState.checkedOutBy = userId;
+  // Override: clear any existing checkout, reverting to Available to check out
+  if (serverState.checkedOutBy) {
+    serverState.checkedOutBy = null;
     serverState.lastUpdated = new Date().toISOString();
     persistState();
     broadcast({ type: 'overrideCheckout', userId });
-    return res.json({ ok: true, checkedOutBy: userId });
+    return res.json({ ok: true, checkedOutBy: null });
   }
-  // If not checked out or already owned, behave like normal checkout
-  if (!serverState.checkedOutBy || serverState.checkedOutBy === userId) {
-    serverState.checkedOutBy = userId;
-    serverState.lastUpdated = new Date().toISOString();
-    persistState();
-    broadcast({ type: 'checkout', userId });
-    return res.json({ ok: true, checkedOutBy: userId });
-  }
-  res.json({ ok: false });
+  // Nothing to clear; already available
+  return res.json({ ok: true, checkedOutBy: null });
 });
 
 // Client-originated events (prototype): accept and rebroadcast for parity
