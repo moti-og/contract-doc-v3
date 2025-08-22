@@ -73,6 +73,7 @@ The server computes a config bundle used by both clients. Relevant parts:
 Rules (summarized from implementation):
 - `canWrite = !isCheckedOut || isOwner` where `isOwner = (checkedOutBy === userId)`.
 - `checkoutBtn`: shown for roles that allow checkout when not checked out.
+- `overrideBtn`: shown for roles with `override: true` when someone else has it checked out.
 - `checkinBtn` and `cancelBtn`: shown only for the owner.
 - `finalizeBtn`: enabled for editors when not final AND (not checked out OR owner); on finalize, checkout is cleared.
 - `unfinalizeBtn`: enabled for editors when final.
@@ -123,6 +124,7 @@ The Web client applies this via a `superdoc:set-mode` event. If the doc is check
 $base = "https://localhost:4001"
 Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout" -ContentType 'application/json' -Body '{"userId":"user1"}'
 Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkin"  -ContentType 'application/json' -Body '{"userId":"user1"}'
+Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout/override" -ContentType 'application/json' -Body '{"userId":"user2","userRole":"editor"}'
 ```
 
 ### Automated

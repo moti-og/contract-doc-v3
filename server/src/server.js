@@ -245,6 +245,7 @@ app.get('/api/v1/state-matrix', (req, res) => {
       unfinalizeBtn: !!rolePerm.unfinalize && serverState.isFinal && canWrite,
       checkoutBtn: !!rolePerm.checkout && !isCheckedOut,
       checkinBtn: !!rolePerm.checkin && isOwner,
+      overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner,
     },
     finalize: { isFinal: serverState.isFinal },
     checkoutStatus: { isCheckedOut, checkedOutUserId: serverState.checkedOutBy },
@@ -351,6 +352,37 @@ app.post('/api/v1/checkin', (req, res) => {
   persistState();
   broadcast({ type: 'checkin', userId });
   res.json({ ok: true });
+});
+
+// Override checkout (admin/editor capability): forcefully take ownership
+app.post('/api/v1/checkout/override', (req, res) => {
+  const userId = req.body?.userId || 'user1';
+  const userRole = req.body?.userRole || 'editor';
+  // Load role permissions for safety
+  let roleMap = {};
+  try {
+    const rp = path.join(dataUsersDir, 'roles.json');
+    if (fs.existsSync(rp)) roleMap = JSON.parse(fs.readFileSync(rp, 'utf8')) || {};
+  } catch {}
+  const canOverride = !!(roleMap[userRole] && roleMap[userRole].override);
+  if (!canOverride) return res.status(403).json({ error: 'Forbidden' });
+  // Allow override only when someone else has checkout
+  if (serverState.checkedOutBy && serverState.checkedOutBy !== userId) {
+    serverState.checkedOutBy = userId;
+    serverState.lastUpdated = new Date().toISOString();
+    persistState();
+    broadcast({ type: 'overrideCheckout', userId });
+    return res.json({ ok: true, checkedOutBy: userId });
+  }
+  // If not checked out or already owned, behave like normal checkout
+  if (!serverState.checkedOutBy || serverState.checkedOutBy === userId) {
+    serverState.checkedOutBy = userId;
+    serverState.lastUpdated = new Date().toISOString();
+    persistState();
+    broadcast({ type: 'checkout', userId });
+    return res.json({ ok: true, checkedOutBy: userId });
+  }
+  res.json({ ok: false });
 });
 
 // Client-originated events (prototype): accept and rebroadcast for parity
