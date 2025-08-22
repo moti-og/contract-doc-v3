@@ -15,7 +15,7 @@ References: `docs/Project-Summary.md`, `docs/docsByAI/implementation-plan.md`, a
 
 ## Roles and permissions (prototype)
 - Editor: can check out, check in, cancel checkout, finalize/unfinalize.
-- Suggestor/Vendor: read‑only or suggesting (cannot check out or check in).
+- Suggestor/Vendor: can check out and check in; document mode remains suggesting by default.
 - Viewer: view‑only.
 
 Exact permissions flow through the state matrix and can be tuned in `data/app/users/roles.json`.
@@ -83,7 +83,7 @@ Rules (summarized from implementation):
   - suggestor/vendor → `suggesting`
   - editor → `editing`
 
-The Web client applies this via a `superdoc:set-mode` event. If the doc is checked out by someone else, editors fall back to read‑only; otherwise they get `editing`.
+The Web client applies this via a `superdoc:set-mode` event. If the doc is checked out by someone else, users without ownership fall back to read‑only or suggesting according to role; owners retain their role's mode.
 
 ## Client behavior (Web and Word add‑in)
 

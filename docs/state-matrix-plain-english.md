@@ -100,9 +100,9 @@ The client filters this list to only include buttons whose flags are true.
 ## Key rules the server applies (summarized)
 - Role‑gated actions
   - Editors can check out, check in, finalize/unfinalize, manage approvals.
-  - Vendors see only read‑only and any allowed vendor‑specific actions.
+  - Vendors and Suggestors can check out and check in (suggesting mode by default when editing).
 - Checkout logic
-  - If the document is not checked out: show `checkoutBtn` (for editors), hide check‑in/cancel.
+  - If the document is not checked out: show `checkoutBtn` (for roles with `checkout: true`), hide check‑in/cancel.
   - If checked out by the current editor: show `checkinBtn`/`cancelBtn` and editor‑only controls.
   - If checked out by someone else: hide override for vendors; typically hide check‑in/cancel; show a banner message.
 - Finalize logic
