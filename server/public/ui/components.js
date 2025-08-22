@@ -55,6 +55,63 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let chatInputEl;
   let buttonsGrid;
   let themeTokens = null;
+  let activeModalEl = null;
+
+  async function renderServerModal(schema, onAction) {
+    try { if (activeModalEl) { activeModalEl.remove(); activeModalEl = null; } } catch {}
+    const s = schema || {};
+    const theme = s.theme || {};
+    const overlay = el('div', { style: { position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 } });
+    const panel = el('div', { style: { width: (s.style?.width || 720) + 'px', maxWidth: '95vw', background: theme.background || '#fff', border: `1px solid ${theme.border || '#e5e7eb'}`, borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' } });
+    const header = el('div', { style: { padding: '14px 16px', borderBottom: `1px solid ${theme.border || '#e5e7eb'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: theme.headerBg || '#fff', color: theme.headerFg || '#111827' } }, [
+      el('div', { style: { fontWeight: '700' } }, [s.title || 'Modal']),
+      (function(){ const b = el('button', { class: 'ms-Button', onclick: () => { try { overlay.remove(); activeModalEl = null; } catch {} } }, [el('span', { class: 'ms-Button-label' }, ['✕'])]); b.style.border = 'none'; b.style.background = 'transparent'; return b; })()
+    ]);
+    const body = el('div', { style: { padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' } });
+    if (s.description) body.append(el('div', { style: { color: theme.muted || '#6b7280' } }, [s.description]));
+    const values = {};
+    const form = el('div', { style: { display: 'grid', gridTemplateColumns: '1fr', gap: '12px' } });
+    const makeRow = (f) => {
+      const row = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } });
+      const lab = el('label', { style: { fontSize: '12px', color: theme.muted || '#6b7280' } }, [f.label || f.name]);
+      let input;
+      if ((f.type || 'text') === 'textarea') {
+        input = el('textarea', { rows: 4, placeholder: f.placeholder || '', maxlength: f.maxLength ? String(f.maxLength) : null, style: { padding: '8px', border: `1px solid ${theme.border || '#e5e7eb'}`, borderRadius: '6px' } });
+      } else {
+        input = el('input', { type: 'text', placeholder: f.placeholder || '', value: f.value || '', style: { padding: '8px', border: `1px solid ${theme.border || '#e5e7eb'}`, borderRadius: '6px' } });
+      }
+      if (typeof f.value === 'string') input.value = f.value;
+      values[f.name] = input.value || '';
+      input.oninput = () => { values[f.name] = input.value || ''; };
+      row.append(lab, input);
+      return row;
+    };
+    (Array.isArray(s.fields) ? s.fields : []).forEach(f => form.append(makeRow(f)));
+    body.append(form);
+    const footer = el('div', { style: { padding: '12px 16px', borderTop: `1px solid ${theme.border || '#e5e7eb'}`, display: 'flex', justifyContent: 'flex-end', gap: '8px' } });
+    const actions = Array.isArray(s.actions) ? s.actions : [];
+    actions.forEach(a => {
+      const btn = el('button', { class: 'ms-Button', onclick: async () => {
+        try {
+          if (typeof onAction === 'function') await onAction(values, a.id);
+        } finally {
+          if (a.id !== 'save') { try { overlay.remove(); activeModalEl = null; } catch {} }
+          else { try { overlay.remove(); activeModalEl = null; } catch {} }
+        }
+      } }, [el('span', { class: 'ms-Button-label' }, [a.label || a.id])]);
+      if (a.variant === 'primary') {
+        btn.style.background = theme.primary || '#111827';
+        btn.style.color = '#ffffff';
+        btn.style.border = `1px solid ${theme.primary || '#111827'}`;
+      }
+      footer.append(btn);
+    });
+    panel.append(header, body, footer);
+    overlay.append(panel);
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) { try { overlay.remove(); activeModalEl = null; } catch {} } });
+    document.body.appendChild(overlay);
+    activeModalEl = overlay;
+  }
   
   function getModeForRole(role) {
     const r = (role || '').toLowerCase();
@@ -348,19 +405,16 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     // Send to Vendor (modal)
     add('Send to Vendor', async () => {
       try {
-        const fromDefault = (() => {
-          try { const sel = userSelectEl?.selectedOptions?.[0]; return sel?.textContent?.trim() || currentUser; } catch { return currentUser; }
-        })();
-        const vendorDefault = "Moti's Builders";
-        const from = prompt('From:', fromDefault) || fromDefault;
-        const message = prompt('Message (max 200 chars):', '') || '';
-        const vendorName = prompt("Vendor name:", vendorDefault) || vendorDefault;
-        if ((message || '').trim().length === 0) { log('sendVendor canceled (empty message)'); return; }
-        const body = { from, message: message.slice(0,200), vendorName, userId: currentUser };
-        const r = await fetch(`${API_BASE}/api/v1/send-vendor`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        if (!r.ok) throw new Error('send-vendor');
-        alert(`Message sent to ${vendorName}.`);
-        log(`sendVendor OK to ${vendorName}`);
+        const schemaRes = await fetch(`${API_BASE}/api/v1/ui/modal/send-vendor?userId=${encodeURIComponent(currentUser)}`);
+        if (!schemaRes.ok) throw new Error('schema');
+        const { schema } = await schemaRes.json();
+        await renderServerModal(schema, async (values, actionId) => {
+          if (actionId !== 'save') return;
+          const body = { ...values, userId: currentUser };
+          const r = await fetch(`${API_BASE}/api/v1/send-vendor`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          if (!r.ok) throw new Error('send-vendor');
+          log(`sendVendor OK to ${values.vendorName}`);
+        });
       } catch (e) { log(`sendVendor ERR ${e?.message || e}`); }
     }, !!config.buttons.sendVendorBtn);
     // Factory Reset: wipe working overlays and reset state

@@ -4,5 +4,13 @@
     "checked_out_self": { "bg": "linear-gradient(180deg,#2563eb,#60a5fa)", "fg": "#ffffff", "pillBg": "#1e3a8a", "pillFg": "#ffffff" },
     "checked_out_other": { "bg": "linear-gradient(180deg,#b45309,#f59e0b)", "fg": "#111827", "pillBg": "#92400e", "pillFg": "#ffffff" },
     "available": { "bg": "linear-gradient(180deg,#16a34a,#4ade80)", "fg": "#ffffff", "pillBg": "#166534", "pillFg": "#ffffff" }
+  },
+  "modal": {
+    "background": "#ffffff",
+    "headerBg": "#ffffff",
+    "headerFg": "#111827",
+    "border": "#e5e7eb",
+    "primary": "#111827",
+    "muted": "#6b7280"
   }
 }
