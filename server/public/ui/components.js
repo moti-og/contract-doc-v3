@@ -54,6 +54,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
   let chatBoxEl;
   let chatInputEl;
   let buttonsGrid;
+  let themeTokens = null;
   
   function getModeForRole(role) {
     const r = (role || '').toLowerCase();
@@ -131,6 +132,15 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
     const res = await fetch(`${API_BASE}/api/v1/state-matrix?${params.toString()}`);
     if (!res.ok) throw new Error('matrix');
     return res.json();
+  }
+
+  async function ensureTheme() {
+    if (themeTokens) return themeTokens;
+    try {
+      const r = await fetch(`${API_BASE}/api/v1/theme`);
+      if (r.ok) themeTokens = await r.json();
+    } catch {}
+    return themeTokens;
   }
 
   async function doPost(url) {
@@ -359,19 +369,19 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
         }
         badge.textContent = `doc: ${currentDocumentId}`;
       }
+      // Right-pane banner from server
       if (statusChipEl) {
-        const cs = config.checkoutStatus || { isCheckedOut: false };
-        if (!cs.isCheckedOut) {
-          statusChipEl.textContent = 'Available for check-out';
-          statusChipEl.style.background = '#e0edff';
-          statusChipEl.style.color = '#1e40af';
-          statusChipEl.style.borderColor = '#c7dbff';
-        } else {
-          statusChipEl.textContent = `Checked out by ${cs.checkedOutUserId}`;
-          statusChipEl.style.background = '#fff7ed';
-          statusChipEl.style.color = '#9a3412';
-          statusChipEl.style.borderColor = '#fed7aa';
-        }
+        const b = (config && config.banner) ? config.banner : {};
+        statusChipEl.textContent = b.title && b.message ? `${b.title}: ${b.message}` : (b.title || statusChipEl.textContent);
+        const theme = await ensureTheme();
+        try {
+          const t = theme?.banner?.[b.state];
+          if (t) {
+            statusChipEl.style.background = t.pillBg || statusChipEl.style.background;
+            statusChipEl.style.color = t.pillFg || statusChipEl.style.color;
+            statusChipEl.style.borderColor = t.pillBg || statusChipEl.style.borderColor;
+          }
+        } catch {}
       }
       if (userCardNameEl) userCardNameEl.textContent = currentUser;
       if (userRolePillEl) userRolePillEl.textContent = (currentRole || 'editor').toUpperCase();
