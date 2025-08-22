@@ -162,34 +162,8 @@
             pill.textContent = `mode: ${currentMode}`;
           } catch {}
         };
-        // Update finalize banner from state matrix
-        const updateFinalizeBanner = async () => {
-          try {
-            console.log('[banner] fetching state-matrix for banner');
-            const r = await fetch('/api/v1/state-matrix?platform=web&userId=user1');
-            const j = await r.json();
-            const banner = j?.config?.banner;
-            let theme;
-            try { theme = await fetch('/api/v1/theme').then(r => r.json()); } catch {}
-            const top = document.getElementById('banner');
-            if (top && banner) {
-              const title = document.querySelector('.banner-title');
-              const pill = document.querySelector('.pill-left');
-              if (title) title.textContent = `${banner.title}: ${banner.message}`;
-              if (pill) pill.textContent = banner.title;
-              if (theme?.banner?.[banner.state]) {
-                const t = theme.banner[banner.state];
-                top.style.background = t.bg || '';
-                top.style.color = t.fg || '';
-                if (pill) { pill.style.background = t.pillBg || ''; pill.style.color = t.pillFg || ''; }
-              }
-              console.log('[banner] updated:', banner);
-            }
-          } catch {}
-        };
         // Initial load
         render(currentDoc);
-        updateFinalizeBanner();
         // Listen for UI requests to open other docs
         window.addEventListener('superdoc:open-url', (e) => {
           try { render(e.detail?.url || '/documents/default.docx'); } catch(err) { console.warn('open-url failed', err); }
@@ -210,27 +184,11 @@
                 // Fallback: remount if instance API not available
                 render(currentDoc);
               }
-              // Update badge and banner
+              // Update badge
               try { const b = document.getElementById('mode-badge'); if (b) b.textContent = `mode: ${currentMode}`; } catch {}
-              updateFinalizeBanner();
             } catch { /* ignore */ }
           }
         });
-        // SSE to refresh banner on finalize/unfinalize
-        try {
-          const es = new EventSource('/api/v1/events');
-          es.onopen = () => console.log('[banner] SSE open');
-          es.onerror = (e) => console.warn('[banner] SSE error', e);
-          es.onmessage = (ev) => {
-            try {
-              const p = JSON.parse(ev.data);
-              if (p?.type === 'finalize') {
-                console.log('[banner] finalize event', p);
-                updateFinalizeBanner();
-              }
-            } catch (e) { console.warn('[banner] parse err', e); }
-          };
-        } catch (e) { console.warn('[banner] SSE init failed', e); }
         // Mount shared UI in footer area
         mountApp({ rootSelector: '#app-root' });
       } catch (e) {
