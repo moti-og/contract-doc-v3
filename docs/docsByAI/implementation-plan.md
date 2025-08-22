@@ -35,7 +35,7 @@
 ## Endpoints (prototype)
 - GET `/api/health` -> `{ ok: true }`
 - GET `/api/current-document` -> `{ id, filename, filePath, lastUpdated }`
-- GET `/api/state-matrix?userRole&platform&userId&isCheckedOut&checkedOutBy` -> `{ config }` (stub)
+- GET `/api/state-matrix?platform&userId` -> `{ config }` (server derives role)
 - GET `/api/approvals/state?documentId` -> stub
 - POST `/api/approvals/(approve|reject|add-user|reorder|update-notes)` -> 200 no-op
 - POST `/api/finalize` | `/api/unfinalize` -> update in-memory state; emit SSE

@@ -284,7 +284,7 @@ app.get('/api/v1/state-matrix', (req, res) => {
       checkinBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
       cancelBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
       overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner && !serverState.isFinal,
-      sendVendorBtn: (derivedRole === 'editor') || !!rolePerm.sendVendor,
+      sendVendorBtn: !!rolePerm.sendVendor && !serverState.isFinal,
     },
     finalize: {
       isFinal: serverState.isFinal,
