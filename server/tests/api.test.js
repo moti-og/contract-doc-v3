@@ -47,7 +47,7 @@ function postJson(path, body) {
 }
 
 async function fetchMatrixFor(userId) {
-  const r = await fetchJson(`/api/v1/state-matrix?userRole=editor&platform=web&userId=${encodeURIComponent(userId || 'tester')}`);
+  const r = await fetchJson(`/api/v1/state-matrix?platform=web&userId=${encodeURIComponent(userId || 'tester')}`);
   if (r.status !== 200) throw new Error('matrix');
   return r.json?.config?.checkoutStatus || r.json.checkoutStatus || r.json.config.checkoutStatus;
 }
@@ -78,7 +78,7 @@ describe('API', () => {
   });
 
   test('state-matrix', async () => {
-    const r = await fetchJson('/api/v1/state-matrix?userRole=editor&platform=web&userId=tester');
+    const r = await fetchJson('/api/v1/state-matrix?platform=web&userId=tester');
     expect(r.status).toBe(200);
     expect(r.json.config).toBeTruthy();
   });

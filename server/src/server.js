@@ -284,6 +284,7 @@ app.get('/api/v1/state-matrix', (req, res) => {
       checkinBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
       cancelBtn: !!rolePerm.checkin && isOwner && !serverState.isFinal,
       overrideBtn: !!rolePerm.override && isCheckedOut && !isOwner && !serverState.isFinal,
+      sendVendorBtn: !!rolePerm.sendVendor && !serverState.isFinal,
     },
     finalize: {
       isFinal: serverState.isFinal,
@@ -508,6 +509,54 @@ app.post('/api/v1/exhibits/upload', upload.single('file'), (req, res) => {
   if (!uploaded) return res.status(400).json({ error: 'No file' });
   broadcast({ type: 'exhibitUpload', name: path.basename(uploaded) });
   res.json({ ok: true });
+});
+
+// Send to Vendor (prototype): no-op with SSE echo
+app.post('/api/v1/send-vendor', (req, res) => {
+  const { from = 'user', message = '', vendorName = "Moti's Builders", userId = 'user1' } = req.body || {};
+  const payload = { from, message: String(message).slice(0, 200), vendorName };
+  broadcast({ type: 'sendVendor', payload, userId });
+  res.json({ ok: true });
+});
+
+// UI schema for Send to Vendor modal
+app.get('/api/v1/ui/modal/send-vendor', (req, res) => {
+  try {
+    const themePath = path.join(dataAppDir, 'theme.json');
+    let theme = {};
+    try { if (fs.existsSync(themePath)) theme = JSON.parse(fs.readFileSync(themePath, 'utf8')) || {}; } catch {}
+    const modalTheme = theme?.modal || {};
+    const users = loadUsers();
+    const userId = req.query?.userId || 'user1';
+    const current = users.find(u => (u?.id || u?.label) === userId) || {};
+    const defaultFrom = current?.label || current?.id || 'OpenGov Staff';
+    const schema = {
+      id: 'sendVendor',
+      title: 'Send to Vendor',
+      style: { width: 720 },
+      theme: {
+        background: modalTheme.background || '#ffffff',
+        headerBg: modalTheme.headerBg || '#ffffff',
+        headerFg: modalTheme.headerFg || '#111827',
+        border: modalTheme.border || '#e5e7eb',
+        primary: modalTheme.primary || '#111827',
+        muted: modalTheme.muted || '#6b7280'
+      },
+      description: 'Notify the vendor that the document is ready for them to review.',
+      fields: [
+        { name: 'from', label: 'From', type: 'text', required: true, value: defaultFrom },
+        { name: 'vendorName', label: 'Vendor Name', type: 'text', required: true, value: "Moti's Builders" },
+        { name: 'message', label: 'Message', type: 'textarea', required: true, maxLength: 200, placeholder: 'Message (max 200 chars)' }
+      ],
+      actions: [
+        { id: 'cancel', label: 'Cancel', variant: 'secondary' },
+        { id: 'save', label: 'Send', variant: 'primary' }
+      ]
+    };
+    res.json({ schema });
+  } catch (e) {
+    res.status(500).json({ error: 'modal schema failed' });
+  }
 });
 
 // SSE events

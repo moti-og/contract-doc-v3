@@ -92,7 +92,7 @@ The Web client applies this via a `superdoc:set-mode` event. If the doc is check
 
 ### Shared UI module (`server/public/ui/components.js`)
 - Renders user/role selectors, status, and a buttons grid.
-- Fetches `/api/v1/state-matrix?userRole&platform&userId` and renders buttons according to `config.buttons`.
+- Fetches `/api/v1/state-matrix?platform&userId` and renders buttons according to `config.buttons`.
 - On Checkout/Check‑in/Cancel click:
   - Calls the corresponding endpoint.
   - Requests a fresh state matrix and re-renders.
@@ -127,7 +127,7 @@ $base = "https://localhost:4001"
 Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout" -ContentType 'application/json' -Body '{"userId":"user1"}'
 Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkin"  -ContentType 'application/json' -Body '{"userId":"user1"}'
 Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout/cancel"  -ContentType 'application/json' -Body '{"userId":"user1"}'
-Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout/override" -ContentType 'application/json' -Body '{"userId":"user2","userRole":"editor"}'
+Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout/override" -ContentType 'application/json' -Body '{"userId":"user2"}'
 ```
 
 ### Automated

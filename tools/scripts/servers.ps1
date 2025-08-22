@@ -22,7 +22,7 @@ function Start-Backend() {
 
 function Start-Dev() {
   $root = Split-Path -Parent $PSCommandPath | Split-Path -Parent | Split-Path -Parent
-  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","cd '$root\\clients\\addin'; npm run dev-server" -WindowStyle Minimized -PassThru
+  Start-Process -FilePath "powershell" -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-Command","cd '$root\\addin'; npm run dev-server" -WindowStyle Minimized -PassThru
 }
 
 function Start-Collab() {

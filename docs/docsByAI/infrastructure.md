@@ -64,7 +64,7 @@ Reference: https://docs.superdoc.dev/
 
 ## API Contracts (uniform for both clients)
 - GET `/api/current-document`  metadata
-- GET `/api/state-matrix?userRole&platform&userId&isCheckedOut&checkedOutBy`  JSON config to drive UI
+- GET `/api/state-matrix?platform&userId`  JSON config to drive UI (server derives role)
 - GET `/api/approvals/state?documentId`
 - GET `/api/approval-matrix?actorPlatform&actorId&documentId`
 - POST `/api/approvals/*` (approve|reject|add-user|reorder|update-notes)

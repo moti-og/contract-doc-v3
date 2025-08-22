@@ -26,7 +26,7 @@
 
     async function loadMatrix() {
       const role = el('#role').value; const platform = el('#platform').value; const userId = el('#user').value;
-      const j = await fetchJSON(`/api/v1/state-matrix?userRole=${encodeURIComponent(role)}&platform=${encodeURIComponent(platform)}&userId=${encodeURIComponent(userId)}`);
+      const j = await fetchJSON(`/api/v1/state-matrix?platform=${encodeURIComponent(platform)}&userId=${encodeURIComponent(userId)}`);
       el('#matrix').textContent = pretty(j);
     }
 
