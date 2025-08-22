@@ -233,7 +233,7 @@ export function mountApp({ rootSelector = '#app-root' } = {}) {
 
     statusBox = el('div', { style: { fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', maxHeight: '160px', overflow: 'auto' } });
 
-    container.append(header, docRow, chipRow, card, approvalsSection, assistantSection, exhibitsSection, statusBox);
+    container.append(header, docRow, chipRow, card, statusBox, assistantSection, exhibitsSection, approvalsSection);
     root.append(container);
     initialized = true;
     connectSSE();
