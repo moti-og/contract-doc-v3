@@ -90,7 +90,7 @@ The Web client applies this via a `superdoc:set-mode` event. If the doc is check
 
 ## Client behavior (Web and Word add‑in)
 
-### Shared UI module (`server/public/ui/components.js`)
+### Shared UI module (React) `/ui/components.react.js`
 - Renders user/role selectors, status, and a buttons grid.
 - Fetches `/api/v1/state-matrix?platform&userId` and renders buttons according to `config.buttons`.
 - On Checkout/Check‑in/Cancel click:
@@ -137,5 +137,3 @@ Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout/override" -ContentTyp
 - Expiring checkouts (auto‑release), admin override, and audit history.
 - Section‑level locks; offline/merge handling; conflict resolution UI.
 - E2E tests across add‑in and web for parity guarantees.
-
-

@@ -7,7 +7,7 @@ Topology
 - 4001: Backend (Express) – API, SSE, static assets for web/add‑in
 - 4002: Collab (Hocuspocus) – realtime backend used by SuperDoc
 - Web UI: https://localhost:4001/view
-- Shared UI module: GET /ui/components.js (top‑level shared-ui/)
+- Shared UI module (React): GET /ui/components.react.js (top‑level shared-ui/)
 - Vendor bundles (local): GET /vendor/superdoc/* (third‑party only)
 
 Sideloading vs Store
@@ -61,4 +61,3 @@ Fast Checklist
 Cleanup Plan (for production)
 - Remove: dev cert scripts, PFX fallback, HTTP opt‑in, post‑checkout hook
 - Keep: clear /ui, /vendor, /view routes; migrate to prod CA cert on backend domain
-

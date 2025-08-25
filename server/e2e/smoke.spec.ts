@@ -1,16 +1,18 @@
 import { test, expect } from '@playwright/test';
 
 // Helpers to find elements in the right pane
-const pane = '#app-root';
+const pane = '#app-root, #react-root';
 const btn = (label: string) => `${pane} button:has-text("${label}")`;
 const statusChip = '#app-root div >> text=/^(Available|Checked out|Finalized)/';
 
 test.describe('Smoke: web right-pane actions', () => {
-  test('checkout -> checkin -> finalize -> unfinalize updates banner', async ({ page }) => {
+  test('checkout -> checkin -> finalize -> unfinalize updates banner (React)', async ({ page }) => {
     await page.goto('/view');
 
     // Wait for pane to mount
     await page.waitForSelector(pane);
+    // Ensure React elements present
+    await expect(page.locator(`${pane} >> text=Exhibits`)).toBeVisible();
 
     // Ensure starting state loads
     await page.waitForTimeout(500);
@@ -29,12 +31,20 @@ test.describe('Smoke: web right-pane actions', () => {
     // Finalize
     if (await page.locator(btn('Finalize')).isVisible().catch(() => false)) {
       await page.click(btn('Finalize'));
-      await expect(page.locator('#app-root')).toContainText(/Finalized/);
+      // Confirm modal (React)
+      if (await page.locator(`${pane} >> text=Confirm`).isVisible().catch(() => false)) {
+        await page.click(`${pane} button:has-text("Confirm")`);
+      }
+      // Wait for buttons to reflect finalized state (Unfinalize appears)
+      await expect(page.locator(btn('Unfinalize'))).toBeVisible();
     }
 
     // Unfinalize
     if (await page.locator(btn('Unfinalize')).isVisible().catch(() => false)) {
       await page.click(btn('Unfinalize'));
+      if (await page.locator(`${pane} >> text=Confirm`).isVisible().catch(() => false)) {
+        await page.click(`${pane} button:has-text("Confirm")`);
+      }
       await expect(page.locator('#app-root')).toContainText(/Available to check out|No one is editing/);
     }
   });
@@ -46,5 +56,26 @@ test.describe('Smoke: web right-pane actions', () => {
     await page.waitForTimeout(300);
     // Expect the banner chip text to be rendered (Available/Checked out/Finalized)
     await expect(page.locator(statusChip)).toBeVisible();
+  });
+
+  test('web export returns bytes (capture and suppress download)', async ({ page }) => {
+    await page.goto('/view');
+    await page.waitForSelector(pane);
+    // Ensure SuperDoc is ready and export API is present
+    await page.waitForFunction(() => !!(window as any).superdocInstance && !!(window as any).superdocAPI?.export, undefined, { timeout: 10000 });
+    // Ask the page to export and return base64 via our API
+    const size = await page.evaluate(async () => {
+      try {
+        const api = (window as any).superdocAPI;
+        let b64 = await api.export('docx');
+        if (!b64 || b64.length < 100) {
+          // Retry once after a brief delay to allow any lazy initialization
+          await new Promise(r => setTimeout(r, 500));
+          b64 = await api.export('docx');
+        }
+        return b64 ? atob(b64).length : 0;
+      } catch { return 0; }
+    });
+    expect(size).toBeGreaterThan(1024);
   });
 });
