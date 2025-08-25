@@ -60,6 +60,8 @@
     function StateProvider(props) {
       const [config, setConfig] = React.useState(null);
       const [revision, setRevision] = React.useState(0);
+      const [loadedVersion, setLoadedVersion] = React.useState(1);
+      const [dismissedVersion, setDismissedVersion] = React.useState(0);
       const [isConnected, setIsConnected] = React.useState(false);
       const [lastTs, setLastTs] = React.useState(0);
       const [userId, setUserId] = React.useState('user1');
@@ -99,8 +101,17 @@
       }, [API_BASE, addLog]);
 
       const refresh = React.useCallback(async () => {
-        try { const r = await fetch(`${API_BASE}/api/v1/state-matrix?platform=web&userId=${encodeURIComponent(userId)}`); if (r.ok) { const j = await r.json(); setConfig(j.config || null); if (typeof j.revision === 'number') setRevision(j.revision); } } catch {}
-      }, [API_BASE, userId]);
+        const plat = (typeof Office !== 'undefined') ? 'word' : 'web';
+        const qs = `platform=${encodeURIComponent(plat)}&userId=${encodeURIComponent(userId)}&clientVersion=${encodeURIComponent(loadedVersion||0)}`;
+        try {
+          const r = await fetch(`${API_BASE}/api/v1/state-matrix?${qs}`);
+          if (r.ok) {
+            const j = await r.json();
+            setConfig(j.config || null);
+            if (typeof j.revision === 'number') setRevision(j.revision);
+          }
+        } catch {}
+      }, [API_BASE, userId, loadedVersion]);
 
       React.useEffect(() => {
         // Load users for selector (role comes from users.json)
@@ -131,13 +142,7 @@
               if (p && p.ts) setLastTs(p.ts);
               const nextRev = (typeof p.revision === 'number') ? p.revision : null;
               if (nextRev !== null) setRevision(nextRev);
-              if (p && (p.type === 'saveProgress' || p.type === 'factoryReset' || p.type === 'documentRevert')) {
-                (async () => {
-                  const preferred = await choosePreferredDocUrl(nextRev ?? Date.now());
-                  setDocumentSource(preferred);
-                  addLog(`doc src sse ${p.type} -> ${preferred}`);
-                })();
-              }
+              // Do not auto-refresh document on save/revert; show banner via state-matrix
               refresh();
             } catch {}
           };
@@ -158,22 +163,20 @@
             const src = await choosePreferredDocUrl(Date.now());
             setDocumentSource(src);
             addLog(`doc src set ${src}`);
+            // Initialize version from first matrix load
+            try {
+              const r = await fetch(`${API_BASE}/api/v1/state-matrix?platform=web&userId=${encodeURIComponent(userId)}`);
+              if (r.ok) {
+                const j = await r.json();
+                const v = Number(j?.config?.documentVersion || 1);
+                setLoadedVersion(Number.isFinite(v) && v > 0 ? v : 1);
+              }
+            } catch {}
           } catch (e) { addError({ kind: 'doc_init', message: 'Failed to choose initial document', cause: String(e) }); }
         })();
       }, [API_BASE, addLog, addError, choosePreferredDocUrl]);
 
-      // Update rev param when revision changes (web)
-      React.useEffect(() => {
-        if (typeof Office !== 'undefined') return;
-        if (!documentSource) return;
-        try {
-          const base = documentSource.split('?')[0];
-          if (base.includes('/documents/working/') || base.includes('/documents/canonical/')) {
-            const next = `${base}?rev=${revision}`;
-            if (next !== documentSource) setDocumentSource(next);
-          }
-        } catch {}
-      }, [revision]);
+      // Do NOT auto-update document on revision changes. The banner/CTA controls refresh.
 
       async function exportWordDocumentAsBase64() {
         function u8ToB64(u8) { let bin=''; for (let i=0;i<u8.length;i++) bin+=String.fromCharCode(u8[i]); return btoa(bin); }
@@ -230,7 +233,7 @@
       async function saveProgressWord() {
         const b64 = await exportWordDocumentAsBase64();
         if (!b64 || b64.length < 1024) throw new Error(`word_export_small ${b64 ? b64.length : 0}`);
-        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64 }) });
+        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64, platform: 'word' }) });
         if (!r.ok) {
           let msg = '';
           try { const j = await r.json(); msg = j && (j.error || j.message) || ''; } catch { try { msg = await r.text(); } catch {} }
@@ -252,7 +255,7 @@
           addLog('web_save ERR export_invalid');
           throw new Error('export_invalid');
         }
-        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64 }) });
+        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64, platform: 'web' }) });
         if (!r.ok) {
           let msg = '';
           try { const j = await r.json(); msg = j && (j.error || j.message) || ''; } catch { try { msg = await r.text(); } catch {} }
@@ -275,15 +278,49 @@
         setUser: (nextUserId, nextRole) => { try { setUserId(nextUserId); if (nextRole) setRole(nextRole); addLog(`user set to ${nextUserId}`); } catch {} },
       }), [API_BASE, refresh, userId, addLog]);
 
-      return React.createElement(StateContext.Provider, { value: { config, revision, actions, isConnected, lastTs, currentUser: userId, currentRole: role, users, logs, addLog, documentSource, setDocumentSource, lastError, setLastError: addError } }, props.children);
+      return React.createElement(StateContext.Provider, { value: { config, revision, actions, isConnected, lastTs, currentUser: userId, currentRole: role, users, logs, addLog, documentSource, setDocumentSource, lastError, setLastError: addError, loadedVersion, setLoadedVersion, dismissedVersion, setDismissedVersion } }, props.children);
     }
 
     function BannerStack() {
       const { tokens } = React.useContext(ThemeContext);
-      const { config } = React.useContext(StateContext);
+      const { config, loadedVersion, setLoadedVersion, dismissedVersion, setDismissedVersion, revision, addLog, setDocumentSource } = React.useContext(StateContext);
       const banners = Array.isArray(config?.banners) ? config.banners : [];
+      const API_BASE = getApiBase();
+      const show = (b) => {
+        if (!b || b.state !== 'update_available') return true;
+        const serverVersion = Number(config?.documentVersion || 0);
+        if (dismissedVersion && dismissedVersion >= serverVersion) return false;
+        if (loadedVersion && loadedVersion >= serverVersion) return false;
+        return true;
+      };
+      const refreshNow = async () => {
+        try {
+          const w = `${API_BASE}/documents/working/default.docx`;
+          const c = `${API_BASE}/documents/canonical/default.docx`;
+          let url = c;
+          try {
+            const h = await fetch(w, { method: 'HEAD' });
+            if (h.ok) {
+              const len = Number(h.headers.get('content-length') || '0');
+              if (Number.isFinite(len) && len > MIN_DOCX_SIZE) url = w;
+            }
+          } catch {}
+          const withRev = `${url}?rev=${revision || Date.now()}`;
+          if (typeof Office !== 'undefined') {
+            const res = await fetch(withRev, { cache: 'no-store' }); if (!res.ok) throw new Error('download');
+            const buf = await res.arrayBuffer();
+            const b64 = (function(buf){ let bin=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.byteLength;i++) bin+=String.fromCharCode(bytes[i]); return btoa(bin); })(buf);
+            await Word.run(async (context) => { context.document.body.insertFileFromBase64(b64, Word.InsertLocation.replace); await context.sync(); });
+          } else {
+            setDocumentSource(withRev);
+            addLog(`doc src refreshNow -> ${withRev}`);
+          }
+          const serverVersion = Number(config?.documentVersion || 0);
+          if (Number.isFinite(serverVersion) && serverVersion > 0) setLoadedVersion(serverVersion);
+        } catch {}
+      };
       return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' } },
-        banners.map((b, i) => {
+        banners.filter(show).map((b, i) => {
           const t = (tokens && tokens.banner && b && b.state) ? tokens.banner[b.state] : null;
           const style = {
             marginTop: '0px', background: (t && t.pillBg) || '#eef2ff', color: (t && t.pillFg) || '#1e3a8a',
@@ -392,7 +429,7 @@
 
     function DocumentControls() {
       const API_BASE = getApiBase();
-      const { revision, setDocumentSource, addLog } = React.useContext(StateContext);
+      const { revision, setDocumentSource, addLog, setLoadedVersion } = React.useContext(StateContext);
       const isWord = typeof Office !== 'undefined';
       const openNew = async () => {
         if (isWord) {
@@ -427,6 +464,14 @@
             const buf = await res.arrayBuffer();
             const b64 = (function(buf){ let bin=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.byteLength;i++) bin+=String.fromCharCode(bytes[i]); return btoa(bin); })(buf);
             await Word.run(async (context) => { context.document.body.insertFileFromBase64(b64, Word.InsertLocation.replace); await context.sync(); });
+            try {
+              const plat = 'word';
+              const u = `${API_BASE}/api/v1/state-matrix?platform=${plat}&clientVersion=0&userId=${encodeURIComponent('user1')}`;
+              const r = await fetch(u);
+              const j = await r.json();
+              const v = Number(j?.config?.documentVersion || 0);
+              if (v > 0) setLoadedVersion(v);
+            } catch {}
           } catch {}
         } else {
           try {
@@ -441,6 +486,14 @@
             const finalUrl = `${url}?rev=${revision || Date.now()}`;
             setDocumentSource(finalUrl);
             addLog(`doc src viewLatest -> ${finalUrl}`);
+            try {
+              const plat = 'web';
+              const u = `${API_BASE}/api/v1/state-matrix?platform=${plat}&clientVersion=0&userId=${encodeURIComponent('user1')}`;
+              const r = await fetch(u);
+              const j = await r.json();
+              const v = Number(j?.config?.documentVersion || 0);
+              if (v > 0) setLoadedVersion(v);
+            } catch {}
           } catch {}
         }
       };

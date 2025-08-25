@@ -42,6 +42,10 @@ const serverState = {
   checkedOutBy: null,
   lastUpdated: new Date().toISOString(),
   revision: 1,
+  // Document update tracking (prototype)
+  documentVersion: 1,
+  updatedBy: null, // { userId, label }
+  updatedPlatform: null, // 'web' | 'word' | null
 };
 
 // Load persisted state if available
@@ -53,17 +57,34 @@ try {
     if (saved.checkedOutBy === null || typeof saved.checkedOutBy === 'string') serverState.checkedOutBy = saved.checkedOutBy;
     if (typeof saved.lastUpdated === 'string') serverState.lastUpdated = saved.lastUpdated;
     if (typeof saved.revision === 'number') serverState.revision = saved.revision;
+    if (typeof saved.documentVersion === 'number') serverState.documentVersion = saved.documentVersion;
+    if (saved.updatedBy && typeof saved.updatedBy === 'object') serverState.updatedBy = saved.updatedBy;
+    if (typeof saved.updatedPlatform === 'string') serverState.updatedPlatform = saved.updatedPlatform;
   }
 } catch {}
 
 function persistState() {
   try {
-    fs.writeFileSync(stateFilePath, JSON.stringify({ isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated, revision: serverState.revision }, null, 2));
+    fs.writeFileSync(stateFilePath, JSON.stringify({ isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated, revision: serverState.revision, documentVersion: serverState.documentVersion, updatedBy: serverState.updatedBy, updatedPlatform: serverState.updatedPlatform }, null, 2));
   } catch {}
 }
 
 function bumpRevision() {
   serverState.revision = (Number(serverState.revision) || 0) + 1;
+  serverState.lastUpdated = new Date().toISOString();
+  persistState();
+}
+
+function bumpDocumentVersion(updatedByUserId, platform) {
+  serverState.documentVersion = (Number(serverState.documentVersion) || 0) + 1;
+  const users = loadUsers();
+  let label = updatedByUserId || 'user1';
+  try {
+    const u = users.find(u => (u?.id || u?.label) === updatedByUserId);
+    if (u) label = u.label || u.id || updatedByUserId;
+  } catch {}
+  serverState.updatedBy = { userId: updatedByUserId || 'user1', label };
+  serverState.updatedPlatform = (platform === 'word' || platform === 'web') ? platform : null;
   serverState.lastUpdated = new Date().toISOString();
   persistState();
 }
@@ -302,6 +323,9 @@ app.get('/api/v1/state-matrix', (req, res) => {
   const banner = buildBanner({ isFinal: serverState.isFinal, isCheckedOut, isOwner, checkedOutBy: serverState.checkedOutBy });
   const config = {
     documentId: DOCUMENT_ID,
+    documentVersion: serverState.documentVersion,
+    lastUpdated: serverState.lastUpdated,
+    updatedBy: serverState.updatedBy,
     buttons: {
       replaceDefaultBtn: true,
       compileBtn: true,
@@ -325,6 +349,18 @@ app.get('/api/v1/state-matrix', (req, res) => {
     // Ordered banners for rendering in sequence on the client
     banners: (() => {
       const list = [banner];
+      // Update-notification banner (server compose; client only renders)
+      try {
+        const clientLoaded = Number(req.query?.clientVersion || 0);
+        const clientPlatform = String(req.query?.platform || 'web').toLowerCase();
+        const lastPlatform = String(serverState.updatedPlatform || '').toLowerCase();
+        // Only notify opposite platform from where the last update was made
+        const shouldNotify = serverState.documentVersion > clientLoaded && (!lastPlatform || clientPlatform !== lastPlatform);
+        if (shouldNotify) {
+          const by = serverState.updatedBy && (serverState.updatedBy.label || serverState.updatedBy.userId) || 'someone';
+          list.unshift({ state: 'update_available', title: 'Update available', message: `${by} updated this document.` });
+        }
+      } catch {}
       if (String(derivedRole).toLowerCase() === 'viewer') {
         list.push({ state: 'view_only', title: 'View Only', message: 'You can look but do not touch!' });
       }
@@ -349,6 +385,7 @@ app.get('/api/v1/theme', (req, res) => {
   } catch {}
   return res.json({
     banner: {
+      update_available: { bg: 'linear-gradient(180deg,#0ea5e9,#38bdf8)', fg: '#0f172a', pillBg: '#0ea5e9', pillFg: '#0f172a' },
       final: { bg: 'linear-gradient(180deg,#b91c1c,#ef4444)', fg: '#ffffff', pillBg: '#7f1d1d', pillFg: '#ffffff' },
       checked_out_self: { bg: 'linear-gradient(180deg,#2563eb,#60a5fa)', fg: '#ffffff', pillBg: '#1e3a8a', pillFg: '#ffffff' },
       checked_out_other: { bg: 'linear-gradient(180deg,#b45309,#f59e0b)', fg: '#111827', pillBg: '#92400e', pillFg: '#ffffff' },
@@ -395,8 +432,8 @@ app.post('/api/v1/document/upload', upload.single('file'), (req, res) => {
   const dest = path.join(workingDocumentsDir, 'default.docx');
   try {
     fs.copyFileSync(uploaded, dest);
-    serverState.lastUpdated = new Date().toISOString();
-    persistState();
+    bumpRevision();
+    bumpDocumentVersion(req.body?.userId || 'user1', req.query?.platform || req.body?.platform || null);
     broadcast({ type: 'documentUpload', name: 'default.docx' });
     res.json({ ok: true });
   } catch (e) {
@@ -407,8 +444,8 @@ app.post('/api/v1/document/upload', upload.single('file'), (req, res) => {
 app.post('/api/v1/document/revert', (req, res) => {
   const working = path.join(workingDocumentsDir, 'default.docx');
   if (fs.existsSync(working)) fs.rmSync(working);
-  serverState.lastUpdated = new Date().toISOString();
-  persistState();
+  bumpRevision();
+  bumpDocumentVersion(req.body?.userId || 'system', req.query?.platform || req.body?.platform || null);
   broadcast({ type: 'documentRevert' });
   res.json({ ok: true });
 });
@@ -417,6 +454,7 @@ app.post('/api/v1/document/revert', (req, res) => {
 app.post('/api/v1/save-progress', (req, res) => {
   try {
     const userId = req.body?.userId || 'user1';
+    const platform = (req.body?.platform || req.query?.platform || '').toLowerCase();
     const base64 = req.body?.base64 || '';
     if (serverState.isFinal) return res.status(409).json({ error: 'Finalized' });
     if (!serverState.checkedOutBy) return res.status(409).json({ error: 'Not checked out' });
@@ -430,6 +468,7 @@ app.post('/api/v1/save-progress', (req, res) => {
     const dest = path.join(workingDocumentsDir, 'default.docx');
     try { fs.writeFileSync(dest, bytes); } catch { return res.status(500).json({ error: 'write_failed' }); }
     bumpRevision();
+    bumpDocumentVersion(userId, platform || 'word');
     broadcast({ type: 'saveProgress', userId, size: bytes.length });
     return res.json({ ok: true, revision: serverState.revision });
   } catch (e) {
@@ -476,6 +515,7 @@ app.post('/api/v1/factory-reset', (req, res) => {
     serverState.isFinal = false;
     serverState.checkedOutBy = null;
     bumpRevision();
+    bumpDocumentVersion('system');
     broadcast({ type: 'factoryReset' });
     // Also emit documentRevert to trigger existing client handlers
     broadcast({ type: 'documentRevert' });

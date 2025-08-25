@@ -1,6 +1,12 @@
 {
   "isFinal": false,
-  "checkedOutBy": null,
-  "lastUpdated": "2025-08-25T07:33:26.639Z",
-  "revision": 41
+  "checkedOutBy": "user2",
+  "lastUpdated": "2025-08-25T19:12:18.786Z",
+  "revision": 62,
+  "documentVersion": 17,
+  "updatedBy": {
+    "userId": "user2",
+    "label": "Fun E Guy"
+  },
+  "updatedPlatform": "web"
 }
