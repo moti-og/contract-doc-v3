@@ -42,6 +42,18 @@ function fetchText(path) {
   });
 }
 
+function fetchHead(path) {
+  const url = `${BASE}${path}`;
+  const mod = url.startsWith('https') ? https : http;
+  return new Promise((resolve, reject) => {
+    const req = mod.request(url, { method: 'HEAD', rejectUnauthorized: false }, (res) => {
+      resolve({ status: res.statusCode, headers: res.headers || {} });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 function postJson(path, body) {
   const url = `${BASE}${path}`;
   const mod = url.startsWith('https') ? https : http;
@@ -169,6 +181,33 @@ describe('API', () => {
     const r2 = await fetchText('/vendor/react/react-dom.production.min.js');
     expect(r2.status).toBe(200);
     expect(typeof r2.text).toBe('string');
+  });
+
+  test('HEAD content-length reflects working overlay size', async () => {
+    await ensureUnfinalized();
+    await ensureNotCheckedOut();
+    const user = 'head-check';
+    // Checkout and write a small-but-valid DOCX-like payload (2KB, PK header)
+    await postJson('/api/v1/checkout', { userId: user });
+    const small = Buffer.alloc(2048, 0); small[0] = 0x50; small[1] = 0x4b;
+    let r = await postJson('/api/v1/save-progress', { userId: user, base64: small.toString('base64') });
+    expect(r.status).toBe(200);
+    // HEAD should report 2048
+    const h1 = await fetchHead('/documents/working/default.docx');
+    expect(h1.status).toBe(200);
+    const len1 = Number(h1.headers['content-length'] || h1.headers['Content-Length'] || '0');
+    expect(len1).toBe(2048);
+    // Now write a larger payload (16KB)
+    const large = Buffer.alloc(16384, 0); large[0] = 0x50; large[1] = 0x4b;
+    r = await postJson('/api/v1/save-progress', { userId: user, base64: large.toString('base64') });
+    expect(r.status).toBe(200);
+    const h2 = await fetchHead('/documents/working/default.docx');
+    expect(h2.status).toBe(200);
+    const len2 = Number(h2.headers['content-length'] || h2.headers['Content-Length'] || '0');
+    expect(len2).toBe(16384);
+    // Cleanup: revert working overlay and release checkout
+    await postJson('/api/v1/document/revert', {});
+    await postJson('/api/v1/checkin', { userId: user });
   });
 
   test('react entry is served', async () => {
