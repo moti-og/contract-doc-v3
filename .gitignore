@@ -14,3 +14,6 @@ clients/addin/dist/
 clients/web/dist/
 *.log
 
+# Guard against accidental nested server sandbox
+server/server/
+
