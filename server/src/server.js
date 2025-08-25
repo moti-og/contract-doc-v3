@@ -328,8 +328,6 @@ app.get('/api/v1/state-matrix', (req, res) => {
     updatedBy: serverState.updatedBy,
     buttons: {
       replaceDefaultBtn: true,
-      compileBtn: true,
-      approvalsBtn: true,
       finalizeBtn: !!rolePerm.finalize && !serverState.isFinal && canWrite,
       unfinalizeBtn: !!rolePerm.unfinalize && serverState.isFinal && canWrite,
       checkoutBtn: !!rolePerm.checkout && !isCheckedOut && !serverState.isFinal,
