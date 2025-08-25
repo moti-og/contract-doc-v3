@@ -137,5 +137,3 @@ Invoke-RestMethod -Method Post -Uri "$base/api/v1/checkout/override" -ContentTyp
 - Expiring checkouts (auto‑release), admin override, and audit history.
 - Section‑level locks; offline/merge handling; conflict resolution UI.
 - E2E tests across add‑in and web for parity guarantees.
-
-

@@ -61,5 +61,3 @@ docker compose -f .\\ops\\docker\\docker-compose.yml down
 ### Notes for future CI/CD
 - If we add CI, keep a `compose.ci.yml` alongside `docker-compose.yml` and combine with `-f` flags.
 - Avoid publishing the local collab image; it’s only for dev.
-
-

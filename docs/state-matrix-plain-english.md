@@ -37,6 +37,7 @@ The server returns an object (fields may be omitted when not relevant):
     "replaceDefaultBtn": true,
     "compileBtn": true,
     "approvalsBtn": true,
+    "requestReviewBtn": true,
     "finalizeBtn": false,
     "unfinalizeBtn": false,
     "checkedInBtns": false
@@ -72,6 +73,7 @@ Notes:
 - `replaceDefaultBtn` – Replace the default document (upload in viewer/add‑in).
 - `compileBtn` – Compile exhibits/packet.
 - `approvalsBtn` – Open approvals panel.
+- `requestReviewBtn` – Non‑destructive notify to all approvers: “It’s time to review.”
 - `finalizeBtn` – Finalize (only when editor has self‑checkout and doc is not final).
 - `unfinalizeBtn` – Unlock (only editors; doc must be final).
 - `checkedInBtns` – Convenience flag used by the client to show the non‑checkout group when you don’t own a checkout.
@@ -106,6 +108,7 @@ Notes:
     "replaceDefaultBtn": true,
     "compileBtn": true,
     "approvalsBtn": true,
+    "requestReviewBtn": true,
     "finalizeBtn": false,
     "unfinalizeBtn": false
   },
@@ -124,6 +127,7 @@ Why: editor can start checkout; finalize is hidden until they have self‑checko
     "replaceDefaultBtn": true,
     "compileBtn": true,
     "approvalsBtn": true,
+    "requestReviewBtn": true,
     "finalizeBtn": true
   },
   "checkoutStatus": { "isCheckedOut": true, "checkedOutUserId": "user1" },
@@ -191,15 +195,16 @@ UI outcomes:
 
 ## Action reference (what the button does in practice)
 
-- Check‑out / Check‑in / Cancel
+- Check‑out / Check‑in and Save / Cancel
   - Matrix flags: `checkoutBtn`, `checkinBtn`, `cancelBtn`, `checkedInBtns` (group)
-  - Client: shows the right group based on ownership of the checkout; calls the server to update checkout state; UI refreshes via SSE/matrix reload
-  - Server: tracks `documentState.isCheckedOut` and the `checkedOutUserId`; enforces “self‑checkout only” rules for privileged actions
+  - Client: when `checkinBtn` is visible, performs Save Progress first, then `POST /api/v1/checkin` (two calls)
+  - Server: tracks `isCheckedOut` and `checkedOutBy`; enforces “self‑checkout only”; Save Progress persists working overlay
 
 - View Latest (read‑only)
   - Matrix flag: `viewOnlyBtn`
-  - Client (Word): `cleanViewLatest()` / `viewLatestSafe()` load the latest DOCX
-  - Server endpoints: `GET /api/get-updated-docx` (base64) or `GET /api/document/:id(.docx)` (bytes)
+  - Client (Word): loads canonical DOCX via Office.js insert
+  - Client (Web): prefers working overlay if present (HEAD `/documents/working/default.docx`), else canonical
+  - Server endpoints: `GET /documents/working/default.docx`, `GET /documents/canonical/default.docx`
 
 - Finalize / Unlock
   - Matrix flags: `finalizeBtn`, `unfinalizeBtn`; `finalize.isFinal` drives state
@@ -217,9 +222,10 @@ UI outcomes:
   - Server: compile health at `GET /api/health/compile` (LibreOffice `soffice --version`)
 
 - Approvals
-  - Matrix: `approvals.enabled` + summary (optional)
-  - Client: shows approvals panel and summary pill (e.g., `2/5 approved`); reorders and updates statuses
-  - Server: stores per‑document approver list, normalizes order, and broadcasts changes; reset via `POST /api/approvals/reset`
+  - Matrix: `approvals.enabled` + summary (optional); `requestReviewBtn` may be shown alongside approvals controls
+  - Client: shows approvals panel and summary pill (e.g., `2/5 approved`); can trigger non‑destructive “Request review” notify to all approvers
+  - UX: no confirm; success toast "Requested review"; SSE notice to other clients
+  - Server: stores per‑document approver list, normalizes order, and broadcasts changes; reset via `POST /api/approvals/reset`; notify via `POST /api/approvals/notify`
 
 - Templates / “Take me back to OpenGov” / Share to Web
   - Matrix flags: `templatesBtn`, `openGovBtn`, `shareToWebBtn`

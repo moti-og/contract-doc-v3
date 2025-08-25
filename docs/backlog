@@ -1,0 +1,63 @@
+
+1 - react (WIP)
+2 - save progress (WIP)
+
+brief done, ready to build:
+3A - fix the doc not loading in the web / initializing
+3B - auto-open file in the other platform when "open new document"
+
+
+brief done, ready to build
+5 - approvals
+
+
+6 - branding
+- Phase 1: remove inline styles via CSS variables (keep React as-is)
+  - [ ] Add base stylesheet (variables + classes) for badges, pills, buttons, modals, panels
+  - [ ] Hydrate CSS variables from /api/v1/theme at :root (Web + Taskpane)
+  - [ ] Replace hex/rgba literals in shared-ui/components.react.js with classes using variables
+  - [ ] Replace hex/rgba literals in web/view.html with classes using variables
+  - [ ] Visual parity pass (side-by-side before/after)
+  - [ ] Enable CI lint for hex/rgba in .js/.html (exclude vendor)
+- Phase 2: (later) introduce primitives (Button/Modal/Pill) consuming variables
+
+brief done, ready to build
+7 - back to opengov
+
+
+8 - OG assist
+9 - new features modal
+10 - templates
+11 - compile
+12 - add users
+
+
+easter eggs
+
+
+
+need to refresh the page a lot to stay in sync
+view banner not present
+sync across platforms still flakey
+
+send to vendor
+approvals
+
+also are we locking the document based on the user role, eg locked 
+
+
+web suggestor always in suggestor mode (locked)
+web wrap the toolbar
+word lock based on permission level
+
+
+
+
+
+
+--startup
+installation message (startup)
+--
+message    = 'Hi there, thanks for offering to help, and for making it this far! Any feedback at all would be great - slack or email me.\n\nThe next steps might be a little daunting if this is the first time you've used this type of software. But I promise, it's not that bad.\n\nClear off your desktop, or create a new one, and make sure word is closed. Once you click "go for it baby!" a few things will happen:\n\n1 - it will start raining tacos\n2 - tons of windows will pop up. seriously, it will look like I'm acquaintenanceing you on friendster. bridge too far?\n3 - your web browser will open up with a nifty website\n4 - word should show up with a similarly nifty thing on the side\n\nAlternatively, this could crash and nothing will happen.\n\nLet's live on the edge!\n\n---\n'
+
+Suggestion: add a small /style-guide route that renders all tokens and key components (Button, Modal, Pill, Badge) to verify theming visually in one place.

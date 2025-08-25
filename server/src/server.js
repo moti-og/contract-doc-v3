@@ -122,7 +122,8 @@ function broadcast(event) {
 // Express app
 const app = express();
 app.use(compression());
-app.use(express.json({ limit: '10mb' }));
+// JSON body limit must accommodate DOCX base64 payloads for save-progress
+app.use(express.json({ limit: '50mb' }));
 
 // CORS for Yeoman add-in dev server
 const allowedOrigins = new Set([
@@ -214,6 +215,7 @@ function listExhibits() {
 app.get('/documents/default.docx', (req, res) => {
   const p = resolveDefaultDocPath();
   if (!fs.existsSync(p)) return res.status(404).send('default.docx not found');
+  res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Disposition', 'inline; filename="default.docx"');
   res.sendFile(p);
 });
@@ -222,6 +224,7 @@ app.get('/documents/default.docx', (req, res) => {
 app.get('/documents/canonical/default.docx', (req, res) => {
   const p = path.join(canonicalDocumentsDir, 'default.docx');
   if (!fs.existsSync(p)) return res.status(404).send('canonical default.docx not found');
+  res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Disposition', 'inline; filename="default.docx"');
   res.sendFile(p);
 });
@@ -229,6 +232,7 @@ app.get('/documents/canonical/default.docx', (req, res) => {
 app.get('/documents/working/default.docx', (req, res) => {
   const p = path.join(workingDocumentsDir, 'default.docx');
   if (!fs.existsSync(p)) return res.status(404).send('working default.docx not found');
+  res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Disposition', 'inline; filename="default.docx"');
   res.sendFile(p);
 });
@@ -420,8 +424,9 @@ app.post('/api/v1/save-progress', (req, res) => {
     let bytes;
     try { bytes = Buffer.from(String(base64), 'base64'); } catch { return res.status(400).json({ error: 'invalid_base64' }); }
     if (!bytes || bytes.length < 4) return res.status(400).json({ error: 'invalid_payload' });
-    // Minimal DOCX check (ZIP magic): must start with 'PK'
-    if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) return res.status(400).json({ error: 'invalid_docx' });
+    // Minimal DOCX check (ZIP magic): must start with 'PK' and be a reasonable size (>1KB)
+    if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) return res.status(400).json({ error: 'invalid_docx_magic' });
+    if (bytes.length < 1024) return res.status(400).json({ error: 'invalid_docx_small', size: bytes.length });
     const dest = path.join(workingDocumentsDir, 'default.docx');
     try { fs.writeFileSync(dest, bytes); } catch { return res.status(500).json({ error: 'write_failed' }); }
     bumpRevision();

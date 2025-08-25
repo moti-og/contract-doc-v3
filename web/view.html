@@ -24,22 +24,27 @@
     #pane { position: relative; z-index: 10; width: 360px; max-width: 420px; border-left: 1px solid #eee; display: flex; flex-direction: column; padding-top: 20px; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.08); }
     #app-root { padding: 8px 12px; overflow: auto; background: #fff; }
   </style>
-  <!-- Load local SuperDoc UMD before module init -->
-  <script src="/vendor/superdoc/superdoc.umd.min.js"></script>
   <!-- React UMD (local) and React entry (shared) -->
   <script defer src="/vendor/react/react.production.min.js"></script>
   <script defer src="/vendor/react/react-dom.production.min.js"></script>
-  <script defer src="/ui/components.react.js?v=react-m5"></script>
+  <script defer src="/ui/components.react.js?v=react-m7"></script>
   <script type="module">
-    import { mountSuperdoc } from '/web/superdoc-init.js?v=ui-actions-3';
+    import { ensureSuperDocLoaded, mountSuperdoc } from '/web/superdoc-init.js?v=ui-actions-4';
     window.addEventListener('load', async () => {
       try {
-        const res = await fetch('/documents/default.docx', { method: 'HEAD' });
-        if (!res.ok) throw new Error('default.docx not found');
+        // Ensure SuperDoc UMD (with exporter) is available from CDN before mounting
+        await ensureSuperDocLoaded();
+        // Prefer working overlay if present; otherwise canonical; fallback to default
+        const rev = Date.now();
+        const candidates = [`/documents/working/default.docx?rev=${rev}`, `/documents/canonical/default.docx?rev=${rev}`, `/documents/default.docx?rev=${rev}`];
+        let chosen = null;
+        for (const u of candidates) { try { const h = await fetch(u, { method: 'HEAD' }); if (h.ok) { chosen = u; break; } } catch {} }
+        if (!chosen) throw new Error('no document available');
 
         let currentMode = 'editing';
-        let currentDoc = '/documents/default.docx';
+        let currentDoc = chosen;
         let superdocInstance = null;
+        let currentBlobUrl = null;
         const mount = (doc) => {
           currentDoc = doc;
           superdocInstance = mountSuperdoc({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: doc, documentMode: currentMode, pagination: true, rulers: true,
@@ -49,6 +54,8 @@
           return superdocInstance;
         };
         const render = (doc) => {
+          try { if (superdocInstance && typeof superdocInstance.destroy === 'function') { superdocInstance.destroy(); } } catch {}
+          superdocInstance = null;
           const oldToolbar = document.getElementById('superdoc-toolbar');
           const oldContainer = document.getElementById('superdoc');
           const newToolbar = document.createElement('div'); newToolbar.id = 'superdoc-toolbar';
@@ -58,15 +65,39 @@
           mount(doc);
           try { let pill = document.getElementById('mode-badge'); if (!pill) { pill = document.createElement('span'); pill.id = 'mode-badge'; pill.style.cssText = 'margin-left:8px;padding:2px 6px;border:1px solid #ddd;border-radius:10px;font-size:12px;background:#fafafa;'; document.getElementById('superdoc-toolbar')?.appendChild(pill); } pill.textContent = `mode: ${currentMode}`; } catch {}
         };
-        render(currentDoc);
-        window.addEventListener('superdoc:open-url', (e) => { try { render(e.detail?.url || '/documents/default.docx'); } catch(err) { console.warn('open-url failed', err); } });
+        // Fetch the initial document as a Blob to avoid any caching layers
+        try {
+          const initRes = await fetch(currentDoc, { cache: 'no-store' });
+          if (!initRes.ok) throw new Error('init download');
+          const initBlob = await initRes.blob();
+          if (currentBlobUrl) { try { URL.revokeObjectURL(currentBlobUrl); } catch {}
+          }
+          currentBlobUrl = URL.createObjectURL(initBlob);
+          render(currentBlobUrl);
+        } catch (err) {
+          console.warn('initial render via blob failed, falling back to URL', err);
+          render(currentDoc);
+        }
+        window.addEventListener('superdoc:open-url', async (e) => {
+          try {
+            const url = e.detail?.url || '/documents/default.docx';
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error('download failed');
+            const blob = await res.blob();
+            if (currentBlobUrl) { try { URL.revokeObjectURL(currentBlobUrl); } catch {}
+            }
+            currentBlobUrl = URL.createObjectURL(blob);
+            render(currentBlobUrl);
+          } catch(err) { console.warn('open-url failed', err); }
+        });
         window.addEventListener('superdoc:open-file', (e) => { try { const f = e.detail?.file; if (f) render(f); } catch(err) { console.warn('open-file failed', err); } });
         window.addEventListener('superdoc:set-mode', (e) => {
           const m = e.detail?.mode; if (m && ['editing','suggesting','viewing'].includes(m)) {
             currentMode = m; try { if (superdocInstance && typeof superdocInstance.setDocumentMode === 'function') { superdocInstance.setDocumentMode(currentMode); render(currentDoc); } else { render(currentDoc); } let b = document.getElementById('mode-badge'); if (b) b.textContent = `mode: ${currentMode}`; } catch {}
           }
         });
-        try { if (window.mountReactApp) window.mountReactApp({ rootSelector: '#react-root' }); } catch {}
+        // Mount the React right pane as the authoritative renderer
+        try { if (window.mountReactApp) window.mountReactApp({ rootSelector: '#app-root' }); } catch {}
       } catch (e) {
         const el = document.getElementById('superdoc');
         el.innerHTML = `<div style="padding:16px">Failed to initialize: ${e?.message || e}.<br/>Open <a href="/debug">/debug</a> to verify current document and uploads.</div>`;

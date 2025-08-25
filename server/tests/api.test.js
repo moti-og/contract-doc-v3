@@ -145,14 +145,18 @@ describe('API', () => {
     // Invalid payload -> 400
     res = await postJson('/api/v1/save-progress', { userId: 'a', base64: Buffer.from('NOTZIP').toString('base64') });
     expect(res.status).toBe(400);
-    // Valid minimal payload -> 200
-    res = await postJson('/api/v1/save-progress', { userId: 'a', base64: Buffer.from('PKOK').toString('base64') });
+    // Valid payload with PK header and sufficient size -> 200
+    const okBuf = Buffer.alloc(2048, 0);
+    okBuf[0] = 0x50; // 'P'
+    okBuf[1] = 0x4b; // 'K'
+    res = await postJson('/api/v1/save-progress', { userId: 'a', base64: okBuf.toString('base64') });
     expect(res.status).toBe(200);
     expect(typeof res.json.revision).toBe('number');
 
     // Finalize blocks save-progress
     await postJson('/api/v1/finalize', { userId: 'a' });
-    res = await postJson('/api/v1/save-progress', { userId: 'a', base64: Buffer.from('PKOK').toString('base64') });
+    const okBuf2 = Buffer.alloc(2048, 0); okBuf2[0]=0x50; okBuf2[1]=0x4b;
+    res = await postJson('/api/v1/save-progress', { userId: 'a', base64: okBuf2.toString('base64') });
     expect(res.status).toBe(409);
     await postJson('/api/v1/unfinalize', { userId: 'a' });
     await ensureNotCheckedOut();

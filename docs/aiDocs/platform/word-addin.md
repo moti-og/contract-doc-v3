@@ -61,4 +61,3 @@ Fast Checklist
 Cleanup Plan (for production)
 - Remove: dev cert scripts, PFX fallback, HTTP opt‑in, post‑checkout hook
 - Keep: clear /ui, /vendor, /view routes; migrate to prod CA cert on backend domain
-

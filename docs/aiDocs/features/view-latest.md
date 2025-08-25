@@ -29,5 +29,3 @@ Files of record
 
 Notes
 - This feature does not change `serverState` nor emit state events. It is a view operation only.
-
-

@@ -39,6 +39,10 @@
       setUser: () => {},
       logs: [],
       addLog: () => {},
+      documentSource: null,
+      setDocumentSource: () => {},
+      lastError: null,
+      setLastError: () => {},
     });
 
     function ThemeProvider(props) {
@@ -61,6 +65,8 @@
       const [role, setRole] = React.useState('editor');
       const [users, setUsers] = React.useState([]);
       const [logs, setLogs] = React.useState([]);
+      const [documentSource, setDocumentSource] = React.useState(null);
+      const [lastError, setLastError] = React.useState(null);
       const API_BASE = getApiBase();
 
       const addLog = React.useCallback((m) => {
@@ -104,32 +110,86 @@
         return () => { try { sse && sse.close(); } catch {} };
       }, [API_BASE, refresh, addLog]);
 
+      const addError = React.useCallback((err) => {
+        try { setLastError(err || null); if (err && err.message) addLog(`ERR ${err.message}`); } catch {}
+      }, [addLog]);
+
+      // Compute initial document source on web (prefer working overlay)
+      React.useEffect(() => {
+        if (typeof Office !== 'undefined') return; // Word path handles separately
+        (async () => {
+          try {
+            const w = `${API_BASE}/documents/working/default.docx`;
+            const c = `${API_BASE}/documents/canonical/default.docx`;
+            let url = c;
+            try { const h = await fetch(w, { method: 'HEAD' }); if (h.ok) url = w; } catch {}
+            const src = `${url}?rev=${Date.now()}`;
+            setDocumentSource(src);
+            addLog(`doc src set ${src}`);
+          } catch (e) { addError({ kind: 'doc_init', message: 'Failed to choose initial document', cause: String(e) }); }
+        })();
+      }, [API_BASE, addLog, addError]);
+
+      // Update rev param when revision changes (web)
+      React.useEffect(() => {
+        if (typeof Office !== 'undefined') return;
+        if (!documentSource) return;
+        try {
+          const base = documentSource.split('?')[0];
+          if (base.includes('/documents/working/') || base.includes('/documents/canonical/')) {
+            const next = `${base}?rev=${revision}`;
+            setDocumentSource(next);
+          }
+        } catch {}
+      }, [revision]);
+
       async function exportWordDocumentAsBase64() {
+        function u8ToB64(u8) { let bin=''; for (let i=0;i<u8.length;i++) bin+=String.fromCharCode(u8[i]); return btoa(bin); }
+        function normalizeSliceToB64(data) {
+          if (typeof data === 'string') return data;
+          if (data && data.byteLength !== undefined) {
+            const u8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+            return u8ToB64(u8);
+          }
+          if (Array.isArray(data) && data.length) {
+            if (typeof data[0] === 'string') return data.join('');
+            if (typeof data[0] === 'number') return u8ToB64(new Uint8Array(data));
+            if (Array.isArray(data[0]) || (data[0] && data[0].byteLength !== undefined)) {
+              // Flatten one level
+              let total = 0; for (const part of data) total += (part?.length ?? (part?.byteLength ?? 0));
+              const out = new Uint8Array(total);
+              let off = 0;
+              for (const part of data) {
+                if (!part) continue;
+                const u8 = part instanceof Uint8Array ? part : (part.byteLength !== undefined ? new Uint8Array(part) : new Uint8Array(part));
+                out.set(u8, off); off += u8.length;
+              }
+              return u8ToB64(out);
+            }
+          }
+          return '';
+        }
         return new Promise((resolve, reject) => {
           try {
             if (typeof Office === 'undefined') return reject('no_office');
-            const sliceSize = 1024 * 64;
-            Office.context.document.getFileAsync(Office.FileType.Compressed, { sliceSize }, (result) => {
+            Office.context.document.getFileAsync(Office.FileType.Compressed, { sliceSize: 65536 }, (result) => {
               if (result.status !== Office.AsyncResultStatus.Succeeded) return reject('getFile_failed');
               const file = result.value;
               const sliceCount = file.sliceCount;
-              const slices = [];
+              let acc = '';
               let index = 0;
-              const next = () => {
+              const readNext = () => {
                 file.getSliceAsync(index, (res) => {
                   if (res.status !== Office.AsyncResultStatus.Succeeded) { try { file.closeAsync(); } catch {}; return reject('getSlice_failed'); }
-                  slices.push(res.value.data); index++;
-                  if (index < sliceCount) return next();
-                  try {
-                    let total = 0; for (const ab of slices) total += (ab && ab.byteLength) ? ab.byteLength : 0;
-                    const out = new Uint8Array(total); let off = 0; for (const ab of slices) { const u8 = new Uint8Array(ab); out.set(u8, off); off += u8.byteLength; }
-                    const b64 = (function(buf){ let bin=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.byteLength;i++) bin+=String.fromCharCode(bytes[i]); return btoa(bin); })(out.buffer);
-                    try { file.closeAsync(); } catch {}
-                    resolve(b64);
-                  } catch (e) { try { file.closeAsync(); } catch {}; reject(e); }
+                  const part = res.value && res.value.data;
+                  acc += normalizeSliceToB64(part);
+                  index++;
+                  if (index < sliceCount) return readNext();
+                  try { file.closeAsync(); } catch {}
+                  resolve(acc);
                 });
               };
-              next();
+              readNext();
             });
           } catch (e) { reject(e); }
         });
@@ -137,33 +197,53 @@
 
       async function saveProgressWord() {
         const b64 = await exportWordDocumentAsBase64();
-        await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64 }) });
+        if (!b64 || b64.length < 1024) throw new Error(`word_export_small ${b64 ? b64.length : 0}`);
+        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64 }) });
+        if (!r.ok) {
+          let msg = '';
+          try { const j = await r.json(); msg = j && (j.error || j.message) || ''; } catch { try { msg = await r.text(); } catch {} }
+          throw new Error(`save-progress ${r.status} ${msg}`.trim());
+        }
       }
 
       async function saveProgressWebViaDownload() {
-        const pick = [`${API_BASE}/documents/working/default.docx`, `${API_BASE}/documents/canonical/default.docx`];
-        let chosen = null; for (const u of pick) { try { const h = await fetch(u, { method: 'HEAD' }); if (h.ok) { chosen = u; break; } } catch {} }
-        if (!chosen) throw new Error('no_doc');
-        const res = await fetch(chosen); if (!res.ok) throw new Error('download');
-        const buf = await res.arrayBuffer();
-        const b64 = (function(buf){ let bin=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.byteLength;i++) bin+=String.fromCharCode(bytes[i]); return btoa(bin); })(buf);
-        await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64 }) });
+        // Web must export from live editor; no fallback to server bytes
+        if (!(window.superdocAPI && typeof window.superdocAPI.export === 'function')) {
+          addLog('web_save ERR export_unavailable');
+          throw new Error('export_unavailable');
+        }
+        const b64 = await window.superdocAPI.export('docx');
+        const size = (() => { try { return atob(b64 || '').length; } catch { return 0; } })();
+        const pk = (() => { try { const u = new Uint8Array(atob(b64||'').split('').map(c=>c.charCodeAt(0))); return u[0]===0x50 && u[1]===0x4b; } catch { return false; } })();
+        addLog(`web_save export size=${size} pk=${pk}`);
+        if (!b64 || size < 1024 || !pk) {
+          addLog('web_save ERR export_invalid');
+          throw new Error('export_invalid');
+        }
+        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64 }) });
+        if (!r.ok) {
+          let msg = '';
+          try { const j = await r.json(); msg = j && (j.error || j.message) || ''; } catch { try { msg = await r.text(); } catch {} }
+          addLog(`web_save ERR save-progress ${r.status} ${msg}`.trim());
+          throw new Error(`save-progress ${r.status} ${msg}`.trim());
+        }
+        addLog('web_save OK');
       }
 
       const actions = React.useMemo(() => ({
-        finalize: async () => { try { await fetch(`${API_BASE}/api/v1/finalize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); await refresh(); } catch {} },
-        unfinalize: async () => { try { await fetch(`${API_BASE}/api/v1/unfinalize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); await refresh(); } catch {} },
-        checkout: async () => { try { await fetch(`${API_BASE}/api/v1/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); await refresh(); } catch {} },
-        checkin: async () => { try { await fetch(`${API_BASE}/api/v1/checkin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); await refresh(); } catch {} },
-        cancel: async () => { try { await fetch(`${API_BASE}/api/v1/checkout/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); await refresh(); } catch {} },
-        override: async () => { try { await fetch(`${API_BASE}/api/v1/checkout/override`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); await refresh(); } catch {} },
-        factoryReset: async () => { try { await fetch(`${API_BASE}/api/v1/factory-reset`, { method: 'POST' }); await refresh(); } catch {} },
+        finalize: async () => { try { await fetch(`${API_BASE}/api/v1/finalize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); addLog('finalize OK'); await refresh(); } catch (e) { addLog(`finalize ERR ${e?.message||e}`); } },
+        unfinalize: async () => { try { await fetch(`${API_BASE}/api/v1/unfinalize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); addLog('unfinalize OK'); await refresh(); } catch (e) { addLog(`unfinalize ERR ${e?.message||e}`); } },
+        checkout: async () => { try { await fetch(`${API_BASE}/api/v1/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); addLog('checkout OK'); await refresh(); } catch (e) { addLog(`checkout ERR ${e?.message||e}`); } },
+        checkin: async () => { try { await fetch(`${API_BASE}/api/v1/checkin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); addLog('checkin OK'); await refresh(); } catch (e) { addLog(`checkin ERR ${e?.message||e}`); } },
+        cancel: async () => { try { await fetch(`${API_BASE}/api/v1/checkout/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); addLog('cancel checkout OK'); await refresh(); } catch (e) { addLog(`cancel checkout ERR ${e?.message||e}`); } },
+        override: async () => { try { await fetch(`${API_BASE}/api/v1/checkout/override`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); addLog('override OK'); await refresh(); } catch (e) { addLog(`override ERR ${e?.message||e}`); } },
+        factoryReset: async () => { try { await fetch(`${API_BASE}/api/v1/factory-reset`, { method: 'POST' }); addLog('factory reset OK'); await refresh(); } catch (e) { addLog(`factory reset ERR ${e?.message||e}`); } },
         sendVendor: (opts) => { try { window.dispatchEvent(new CustomEvent('react:open-modal', { detail: { id: 'send-vendor', options: { userId, ...(opts||{}) } } })); } catch {} },
-        saveProgress: async () => { try { if (typeof Office !== 'undefined') { await saveProgressWord(); } else { await saveProgressWebViaDownload(); } await refresh(); } catch {} },
-        setUser: (nextUserId, nextRole) => { try { setUserId(nextUserId); if (nextRole) setRole(nextRole); } catch {} },
-      }), [API_BASE, refresh, userId]);
+        saveProgress: async () => { try { if (typeof Office !== 'undefined') { await saveProgressWord(); } else { await saveProgressWebViaDownload(); } addLog('save progress OK'); await refresh(); return true; } catch (e) { addLog(`save progress ERR ${e?.message||e}`); return false; } },
+        setUser: (nextUserId, nextRole) => { try { setUserId(nextUserId); if (nextRole) setRole(nextRole); addLog(`user set to ${nextUserId}`); } catch {} },
+      }), [API_BASE, refresh, userId, addLog]);
 
-      return React.createElement(StateContext.Provider, { value: { config, revision, actions, isConnected, lastTs, currentUser: userId, currentRole: role, users, logs, addLog } }, props.children);
+      return React.createElement(StateContext.Provider, { value: { config, revision, actions, isConnected, lastTs, currentUser: userId, currentRole: role, users, logs, addLog, documentSource, setDocumentSource, lastError, setLastError: addError } }, props.children);
     }
 
     function BannerStack() {
@@ -204,7 +284,7 @@
       return React.createElement(React.Fragment, null,
         React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px' } }, [
           add('Checkout', actions.checkout, !!btns.checkoutBtn),
-          add('Checkin', actions.checkin, !!btns.checkinBtn),
+          add('Check-in and Save', async () => { try { const ok = await actions.saveProgress(); if (ok) { await actions.checkin(); } } catch {} }, !!btns.checkinBtn, 'primary'),
           add('Cancel Checkout', actions.cancel, !!btns.cancelBtn),
           add('Save Progress', actions.saveProgress, !!btns.saveProgressBtn, 'primary'),
           add('Finalize', () => ask('Finalize?', 'This will lock the document.', actions.finalize), !!btns.finalizeBtn, 'primary'),
@@ -280,6 +360,7 @@
 
     function DocumentControls() {
       const API_BASE = getApiBase();
+      const { revision, setDocumentSource } = React.useContext(StateContext);
       const isWord = typeof Office !== 'undefined';
       const openNew = async () => {
         if (isWord) {
@@ -297,14 +378,66 @@
         }
       };
       const viewLatest = async () => {
+        const w = `${API_BASE}/documents/working/default.docx`;
+        const c = `${API_BASE}/documents/canonical/default.docx`;
         if (isWord) {
-          try { const res = await fetch(`${API_BASE}/documents/canonical/default.docx`); if (!res.ok) throw new Error('download'); const buf = await res.arrayBuffer(); const b64 = (function(buf){ let bin=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.byteLength;i++) bin+=String.fromCharCode(bytes[i]); return btoa(bin); })(buf); await Word.run(async (context) => { context.document.body.insertFileFromBase64(b64, Word.InsertLocation.replace); await context.sync(); }); } catch {}
+          try {
+            let url = c;
+            try { const h = await fetch(w, { method: 'HEAD' }); if (h.ok) url = w; } catch {}
+            const withRev = `${url}?rev=${revision || Date.now()}`;
+            const res = await fetch(withRev, { cache: 'no-store' }); if (!res.ok) throw new Error('download');
+            const buf = await res.arrayBuffer();
+            const b64 = (function(buf){ let bin=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.byteLength;i++) bin+=String.fromCharCode(bytes[i]); return btoa(bin); })(buf);
+            await Word.run(async (context) => { context.document.body.insertFileFromBase64(b64, Word.InsertLocation.replace); await context.sync(); });
+          } catch {}
         } else {
-          try { window.dispatchEvent(new CustomEvent('superdoc:open-url', { detail: { url: `${API_BASE}/documents/canonical/default.docx` } })); } catch {}
+          try {
+            let url = c;
+            try { const h = await fetch(w, { method: 'HEAD' }); if (h.ok) url = w; } catch {}
+            const finalUrl = `${url}?rev=${revision || Date.now()}`;
+            setDocumentSource(finalUrl);
+          } catch {}
         }
       };
       const btn = (label, onClick) => React.createElement('button', { className: 'ms-Button', onClick, style: { margin: '4px' } }, React.createElement('span', { className: 'ms-Button-label' }, label));
       return React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px' } }, [btn('Open New Document', openNew), btn('View Latest', viewLatest)]);
+    }
+
+    function ErrorBanner() {
+      const { lastError } = React.useContext(StateContext);
+      if (!lastError) return null;
+      const msg = lastError.message || 'An error occurred';
+      const detail = lastError.url ? ` url=${lastError.url}` : '';
+      const status = lastError.status ? ` status=${lastError.status}` : '';
+      return React.createElement('div', { style: { margin: '8px 0', padding: '8px', border: '1px solid #fca5a5', background: '#fee2e2', color: '#7f1d1d', borderRadius: '6px' } }, `Error: ${msg}${status}${detail}`);
+    }
+
+    function SuperDocHost() {
+      const { documentSource, setLastError, addLog } = React.useContext(StateContext);
+      const mountedRef = React.useRef(false);
+      React.useEffect(() => {
+        if (typeof Office !== 'undefined') return; // Word path not here
+        if (!documentSource) return;
+        try {
+          if (window.SuperDocBridge && typeof window.SuperDocBridge.mount === 'function') {
+            if (!mountedRef.current) {
+              window.SuperDocBridge.mount({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: documentSource, documentMode: 'editing' });
+              mountedRef.current = true;
+              addLog(`doc open ${documentSource}`);
+            } else if (typeof window.SuperDocBridge.open === 'function') {
+              window.SuperDocBridge.open(documentSource);
+              addLog(`doc refresh ${documentSource}`);
+            }
+          } else {
+            throw new Error('SuperDocBridge unavailable');
+          }
+        } catch (e) {
+          setLastError({ kind: 'doc_load', message: 'Failed to open document', url: documentSource, status: null, cause: String(e) });
+          try { console.error('doc_load_error', { url: documentSource, error: e }); } catch {}
+        }
+        return () => {};
+      }, [documentSource]);
+      return null;
     }
 
     function SendVendorModal(props) {
@@ -393,6 +526,7 @@
 
     function App() {
       const [modal, setModal] = React.useState(null);
+      const { documentSource } = React.useContext(StateContext);
       React.useEffect(() => {
         function onOpen(ev) { try { const d = ev.detail || {}; if (d && (d.id === 'send-vendor' || d.id === 'sendVendor')) setModal({ id: 'send-vendor', userId: d.options?.userId || 'user1' }); } catch {} }
         window.addEventListener('react:open-modal', onOpen);
@@ -408,6 +542,9 @@
       return React.createElement(ThemeProvider, null,
         React.createElement(StateProvider, null,
           React.createElement(React.Fragment, null,
+            React.createElement(ErrorBanner, null),
+            // SuperDoc host only on web
+            (typeof Office === 'undefined' ? React.createElement(SuperDocHost, { key: 'host', src: documentSource }) : null),
             React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' } }, [
               React.createElement(UserCard, { key: 'u' }),
               React.createElement(ConnectionBadge, { key: 'c' }),

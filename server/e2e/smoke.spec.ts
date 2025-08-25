@@ -5,6 +5,8 @@ const pane = '#app-root, #react-root';
 const btn = (label: string) => `${pane} button:has-text("${label}")`;
 const statusChip = '#app-root div >> text=/^(Available|Checked out|Finalized)/';
 
+test.use({ baseURL: 'https://localhost:4001' });
+
 test.describe('Smoke: web right-pane actions', () => {
   test('checkout -> checkin -> finalize -> unfinalize updates banner (React)', async ({ page }) => {
     await page.goto('/view');

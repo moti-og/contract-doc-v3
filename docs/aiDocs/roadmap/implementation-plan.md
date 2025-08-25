@@ -10,7 +10,7 @@
 
 ## Architecture baseline
 - Server (Node, port 4001)
-  - HTTPS with a trusted local dev certificate; host web and add-in from the same origin
+  - HTTPS with a trusted local dev certificate; host web and add‑in from the same origin
   - Serves static assets (including a shared SuperDoc bootstrap module and a shared React UI module)
   - API: state matrix, document metadata, finalize/unfinalize, approvals (stub), uploads, exhibits
   - SSE endpoint for parity updates

@@ -1,4 +1,4 @@
-﻿# Infrastructure and Stack Plan
+# Infrastructure and Stack Plan
 
 ## Local server management and smoke
 
@@ -108,35 +108,4 @@ Reference: https://docs.superdoc.dev/
 - Parity rule: a feature is complete when both clients function with the same server contracts.
 
 ## What we need from SuperDoc
-- Licensing & versioning
-  - Target version and license (AGPLv3 or commercial) and any constraints.
-- Backend deployment details
-  - Supported deployment model (Docker/K8s), persistence requirements, backup/restore strategy.
-  - Realtime collaboration protocol (OT/CRDT) endpoints we integrate with.
-  - Auth integration options (JWT/OIDC) to align with Okta.
-- Import/Export & compatibility
-  - DOCX/PDF import/export APIs; tracked changes and comments fidelity guarantees.
-  - Limits (document size, media, headers/footers, sections, styles) and performance SLAs.
-- Events & hooks
-  - Webhooks or servertoserver events for document updates; client SDK events we should subscribe to.
-  - Extension points for custom nodes/toolbar and how to package them.
-- SDK specifics
-  - Frontend SDK package names, init options, collaboration room semantics, presence, comments.
-  - Accessibility guarantees and keyboard navigation constraints.
-
-Reference: https://docs.superdoc.dev/
-
-## What we need from your company style guide
-- Design tokens (colors, spacing, radii, shadows), typography scale, iconography.
-- Component standards (modal, button, inputs, dropdowns), motion guidelines, focus states.
-- Accessibility requirements (contrast, keyboard traps, screen reader expectations).
-- Content and copy guidelines (labels, capitalization, tone for banners/modals).
-- Code standards: ESLint/Prettier configs, TypeScript settings, commit conventions, CI policies.
-- Branding assets (logos, favicons) and usage rules.
-
-## Next Steps
-1. Confirm SuperDoc backend deployment approach.
-2. Lock API contracts for state matrix and approvals.
-3. Scaffold shared modal/banner and state-matrix client in `clients/shared/`.
-4. Wire both clients to the same endpoints; add SSE parity.
-5. Create canonical users in `data/app/users` and a simple user switcher.
+... (content duplicated)
