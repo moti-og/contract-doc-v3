@@ -78,4 +78,49 @@ test.describe('Smoke: web right-pane actions', () => {
     });
     expect(size).toBeGreaterThan(1024);
   });
+
+  test('client falls back to canonical when working doc is tiny', async ({ page }) => {
+    // Prepare: ensure tiny working overlay via API
+    await page.request.post('/api/v1/unfinalize', { data: { userId: 'e2e' } });
+    await page.request.post('/api/v1/checkout', { data: { userId: 'e2e' } });
+    const small = Buffer.alloc(2048, 0); small[0] = 0x50; small[1] = 0x4b;
+    await page.request.post('/api/v1/save-progress', { data: { userId: 'e2e', base64: small.toString('base64') } });
+
+    await page.goto('/view');
+    await page.waitForSelector(pane);
+    // Wait for SuperDoc mount logs to appear
+    const msg = await page.waitForEvent('console', { predicate: (m) => /SuperDoc ready/.test(m.text()) });
+    expect(msg).toBeTruthy();
+    // The React logs print source changes; check for canonical
+    const seen = new Set<string>();
+    page.on('console', m => seen.add(m.text()));
+    await page.waitForTimeout(300);
+    const hasCanonical = Array.from(seen).some(t => /doc open \[canonical] url/.test(t) || /doc src set .*\/documents\/canonical\//.test(t));
+    expect(hasCanonical).toBeTruthy();
+
+    // Cleanup
+    await page.request.post('/api/v1/document/revert', { data: {} });
+    await page.request.post('/api/v1/checkin', { data: { userId: 'e2e' } });
+  });
+
+  test('client prefers working when overlay is large enough', async ({ page }) => {
+    // Prepare: write larger working overlay
+    await page.request.post('/api/v1/unfinalize', { data: { userId: 'e2e' } });
+    await page.request.post('/api/v1/checkout', { data: { userId: 'e2e' } });
+    const large = Buffer.alloc(16384, 0); large[0] = 0x50; large[1] = 0x4b;
+    await page.request.post('/api/v1/save-progress', { data: { userId: 'e2e', base64: large.toString('base64') } });
+
+    await page.goto('/view');
+    await page.waitForSelector(pane);
+    const seen = new Set<string>();
+    page.on('console', m => seen.add(m.text()));
+    await page.waitForFunction(() => !!(window as any).superdocInstance, undefined, { timeout: 10000 });
+    await page.waitForTimeout(300);
+    const hasWorking = Array.from(seen).some(t => /doc open \[working] url/.test(t) || /doc src set .*\/documents\/working\//.test(t));
+    expect(hasWorking).toBeTruthy();
+
+    // Cleanup
+    await page.request.post('/api/v1/document/revert', { data: {} });
+    await page.request.post('/api/v1/checkin', { data: { userId: 'e2e' } });
+  });
 });

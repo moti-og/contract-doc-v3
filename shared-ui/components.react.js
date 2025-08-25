@@ -25,6 +25,7 @@
 
     const React = win.React;
     const ReactDOM = win.ReactDOM;
+    const MIN_DOCX_SIZE = 8192; // bytes; reject tiny/invalid working overlays
 
     const ThemeContext = React.createContext({ tokens: null });
     const StateContext = React.createContext({
@@ -76,6 +77,27 @@
         } catch {}
       }, []);
 
+      // Prefer working default if present, else canonical. Append a revision hint.
+      const choosePreferredDocUrl = React.useCallback(async (revHint) => {
+        try {
+          const working = `${API_BASE}/documents/working/default.docx`;
+          const canonical = `${API_BASE}/documents/canonical/default.docx`;
+          let url = canonical;
+          try {
+            const h = await fetch(working, { method: 'HEAD' });
+            if (h.ok) {
+              const len = Number(h.headers.get('content-length') || '0');
+              if (Number.isFinite(len) && len > MIN_DOCX_SIZE) url = working;
+            }
+          } catch {}
+          const rev = (typeof revHint === 'number' && revHint > 0) ? revHint : Date.now();
+          return `${url}?rev=${rev}`;
+        } catch (e) {
+          addLog(`doc choose ERR ${e?.message||e}`);
+          return `${API_BASE}/documents/canonical/default.docx?rev=${Date.now()}`;
+        }
+      }, [API_BASE, addLog]);
+
       const refresh = React.useCallback(async () => {
         try { const r = await fetch(`${API_BASE}/api/v1/state-matrix?platform=web&userId=${encodeURIComponent(userId)}`); if (r.ok) { const j = await r.json(); setConfig(j.config || null); if (typeof j.revision === 'number') setRevision(j.revision); } } catch {}
       }, [API_BASE, userId]);
@@ -103,7 +125,21 @@
           sse = new EventSource(`${API_BASE}/api/v1/events`);
           sse.onopen = () => { setIsConnected(true); addLog('SSE open'); };
           sse.onmessage = (ev) => {
-            try { addLog(`SSE ${ev.data}`); const p = JSON.parse(ev.data); if (p && p.ts) setLastTs(p.ts); if (typeof p.revision === 'number') setRevision(p.revision); refresh(); } catch {}
+            try {
+              addLog(`SSE ${ev.data}`);
+              const p = JSON.parse(ev.data);
+              if (p && p.ts) setLastTs(p.ts);
+              const nextRev = (typeof p.revision === 'number') ? p.revision : null;
+              if (nextRev !== null) setRevision(nextRev);
+              if (p && (p.type === 'saveProgress' || p.type === 'factoryReset' || p.type === 'documentRevert')) {
+                (async () => {
+                  const preferred = await choosePreferredDocUrl(nextRev ?? Date.now());
+                  setDocumentSource(preferred);
+                  addLog(`doc src sse ${p.type} -> ${preferred}`);
+                })();
+              }
+              refresh();
+            } catch {}
           };
           sse.onerror = () => { setIsConnected(false); addLog('SSE error'); };
         } catch {}
@@ -119,16 +155,12 @@
         if (typeof Office !== 'undefined') return; // Word path handles separately
         (async () => {
           try {
-            const w = `${API_BASE}/documents/working/default.docx`;
-            const c = `${API_BASE}/documents/canonical/default.docx`;
-            let url = c;
-            try { const h = await fetch(w, { method: 'HEAD' }); if (h.ok) url = w; } catch {}
-            const src = `${url}?rev=${Date.now()}`;
+            const src = await choosePreferredDocUrl(Date.now());
             setDocumentSource(src);
             addLog(`doc src set ${src}`);
           } catch (e) { addError({ kind: 'doc_init', message: 'Failed to choose initial document', cause: String(e) }); }
         })();
-      }, [API_BASE, addLog, addError]);
+      }, [API_BASE, addLog, addError, choosePreferredDocUrl]);
 
       // Update rev param when revision changes (web)
       React.useEffect(() => {
@@ -138,7 +170,7 @@
           const base = documentSource.split('?')[0];
           if (base.includes('/documents/working/') || base.includes('/documents/canonical/')) {
             const next = `${base}?rev=${revision}`;
-            setDocumentSource(next);
+            if (next !== documentSource) setDocumentSource(next);
           }
         } catch {}
       }, [revision]);
@@ -360,7 +392,7 @@
 
     function DocumentControls() {
       const API_BASE = getApiBase();
-      const { revision, setDocumentSource } = React.useContext(StateContext);
+      const { revision, setDocumentSource, addLog } = React.useContext(StateContext);
       const isWord = typeof Office !== 'undefined';
       const openNew = async () => {
         if (isWord) {
@@ -373,7 +405,7 @@
           input.click();
         } else {
           const input = document.createElement('input'); input.type = 'file'; input.accept = '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          input.onchange = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; try { window.dispatchEvent(new CustomEvent('superdoc:open-file', { detail: { file: f } })); } catch {} };
+          input.onchange = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; try { setDocumentSource(f); addLog('doc src set [file]'); } catch {} };
           input.click();
         }
       };
@@ -383,7 +415,13 @@
         if (isWord) {
           try {
             let url = c;
-            try { const h = await fetch(w, { method: 'HEAD' }); if (h.ok) url = w; } catch {}
+            try {
+              const h = await fetch(w, { method: 'HEAD' });
+              if (h.ok) {
+                const len = Number(h.headers.get('content-length') || '0');
+                if (Number.isFinite(len) && len > MIN_DOCX_SIZE) url = w;
+              }
+            } catch {}
             const withRev = `${url}?rev=${revision || Date.now()}`;
             const res = await fetch(withRev, { cache: 'no-store' }); if (!res.ok) throw new Error('download');
             const buf = await res.arrayBuffer();
@@ -393,9 +431,16 @@
         } else {
           try {
             let url = c;
-            try { const h = await fetch(w, { method: 'HEAD' }); if (h.ok) url = w; } catch {}
+            try {
+              const h = await fetch(w, { method: 'HEAD' });
+              if (h.ok) {
+                const len = Number(h.headers.get('content-length') || '0');
+                if (Number.isFinite(len) && len > MIN_DOCX_SIZE) url = w;
+              }
+            } catch {}
             const finalUrl = `${url}?rev=${revision || Date.now()}`;
             setDocumentSource(finalUrl);
+            addLog(`doc src viewLatest -> ${finalUrl}`);
           } catch {}
         }
       };
@@ -415,26 +460,94 @@
     function SuperDocHost() {
       const { documentSource, setLastError, addLog } = React.useContext(StateContext);
       const mountedRef = React.useRef(false);
+      const inFlightIdRef = React.useRef(0);
+      const blobUrlRef = React.useRef(null);
       React.useEffect(() => {
         if (typeof Office !== 'undefined') return; // Word path not here
         if (!documentSource) return;
-        try {
-          if (window.SuperDocBridge && typeof window.SuperDocBridge.mount === 'function') {
-            if (!mountedRef.current) {
-              window.SuperDocBridge.mount({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: documentSource, documentMode: 'editing' });
-              mountedRef.current = true;
-              addLog(`doc open ${documentSource}`);
-            } else if (typeof window.SuperDocBridge.open === 'function') {
-              window.SuperDocBridge.open(documentSource);
-              addLog(`doc refresh ${documentSource}`);
+        (async () => {
+          const myId = ++inFlightIdRef.current;
+          try {
+            const hasBridge = !!(window.SuperDocBridge && typeof window.SuperDocBridge.mount === 'function');
+            if (!hasBridge) throw new Error('SuperDocBridge unavailable');
+            const MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+            async function isValidDocx(blob) {
+              try {
+                if (!blob || typeof blob.size !== 'number' || blob.size < MIN_DOCX_SIZE) return false;
+                const ab = await blob.slice(0, 2).arrayBuffer();
+                const u8 = new Uint8Array(ab);
+                return u8[0] === 0x50 && u8[1] === 0x4b; // 'PK'
+              } catch { return false; }
             }
-          } else {
-            throw new Error('SuperDocBridge unavailable');
+
+            async function fetchDocxOrNull(url) {
+              try {
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) return null;
+                let blob = await res.blob();
+                if (blob && blob.type !== MIME_DOCX) {
+                  try { blob = new Blob([blob], { type: MIME_DOCX }); } catch {}
+                }
+                if (!(await isValidDocx(blob))) return null;
+                return blob;
+              } catch { return null; }
+            }
+
+            // Resolve to a valid DOCX Blob/File: try source; if working 404/invalid, try canonical.
+            let finalBlob = null;
+            let origin = 'file';
+            const src = documentSource;
+            if (src && (src instanceof Blob || src instanceof File)) {
+              finalBlob = src;
+              origin = 'file';
+            } else if (typeof src === 'string') {
+              origin = src.includes('/documents/working/') ? 'working' : (src.includes('/documents/canonical/') ? 'canonical' : 'url');
+              finalBlob = await fetchDocxOrNull(src);
+              if (!finalBlob && origin === 'working') {
+                try {
+                  const base = src.split('?')[0].replace('/documents/working/', '/documents/canonical/');
+                  const rev = (src.split('rev=')[1] || Date.now()).toString();
+                  const fallbackUrl = `${base}?rev=${rev}`;
+                  finalBlob = await fetchDocxOrNull(fallbackUrl);
+                  if (finalBlob) { origin = 'canonical'; }
+                } catch {}
+              }
+            }
+
+            if (inFlightIdRef.current !== myId) return; // superseded by a newer request
+
+            if (!finalBlob) {
+              setLastError({ kind: 'doc_load', message: 'Failed to load document bytes', url: String(documentSource || ''), status: null });
+              addLog('doc open ERR invalid_bytes');
+              return;
+            }
+
+            // Prepare a blob URL for the UMD bridge (expects URL or File/Blob; URL is most reliable)
+            try { if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; } } catch {}
+            const objectUrl = URL.createObjectURL(finalBlob);
+            blobUrlRef.current = objectUrl;
+            const docConfigUrl = { id: 'default', type: 'docx', url: objectUrl };
+            // const docConfigData = { id: 'default', type: 'docx', data: finalBlob };
+
+            if (!mountedRef.current) {
+              // Use open() path which resets containers before mount, mirroring prior working behavior
+              if (typeof window.SuperDocBridge.open === 'function') {
+                window.SuperDocBridge.open(docConfigUrl);
+              } else {
+                window.SuperDocBridge.mount({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: docConfigUrl, documentMode: 'editing' });
+              }
+              mountedRef.current = true;
+              addLog(`doc open [${origin}] url`);
+            } else if (typeof window.SuperDocBridge.open === 'function') {
+              window.SuperDocBridge.open(docConfigUrl);
+              addLog(`doc refresh [${origin}] url`);
+            }
+          } catch (e) {
+            setLastError({ kind: 'doc_load', message: 'Failed to open document', url: String(documentSource || ''), status: null, cause: String(e) });
+            try { console.error('doc_load_error', { url: documentSource, error: e }); } catch {}
           }
-        } catch (e) {
-          setLastError({ kind: 'doc_load', message: 'Failed to open document', url: documentSource, status: null, cause: String(e) });
-          try { console.error('doc_load_error', { url: documentSource, error: e }); } catch {}
-        }
+        })();
         return () => {};
       }, [documentSource]);
       return null;
