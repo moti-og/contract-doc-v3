@@ -101,7 +101,8 @@
       }, [API_BASE, addLog]);
 
       const refresh = React.useCallback(async () => {
-        const qs = `platform=web&userId=${encodeURIComponent(userId)}&clientVersion=${encodeURIComponent(loadedVersion||0)}`;
+        const plat = (typeof Office !== 'undefined') ? 'word' : 'web';
+        const qs = `platform=${encodeURIComponent(plat)}&userId=${encodeURIComponent(userId)}&clientVersion=${encodeURIComponent(loadedVersion||0)}`;
         try {
           const r = await fetch(`${API_BASE}/api/v1/state-matrix?${qs}`);
           if (r.ok) {
@@ -175,18 +176,7 @@
         })();
       }, [API_BASE, addLog, addError, choosePreferredDocUrl]);
 
-      // Update rev param when revision changes (web)
-      React.useEffect(() => {
-        if (typeof Office !== 'undefined') return;
-        if (!documentSource) return;
-        try {
-          const base = documentSource.split('?')[0];
-          if (base.includes('/documents/working/') || base.includes('/documents/canonical/')) {
-            const next = `${base}?rev=${revision}`;
-            if (next !== documentSource) setDocumentSource(next);
-          }
-        } catch {}
-      }, [revision]);
+      // Do NOT auto-update document on revision changes. The banner/CTA controls refresh.
 
       async function exportWordDocumentAsBase64() {
         function u8ToB64(u8) { let bin=''; for (let i=0;i<u8.length;i++) bin+=String.fromCharCode(u8[i]); return btoa(bin); }
@@ -243,7 +233,7 @@
       async function saveProgressWord() {
         const b64 = await exportWordDocumentAsBase64();
         if (!b64 || b64.length < 1024) throw new Error(`word_export_small ${b64 ? b64.length : 0}`);
-        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64 }) });
+        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64, platform: 'word' }) });
         if (!r.ok) {
           let msg = '';
           try { const j = await r.json(); msg = j && (j.error || j.message) || ''; } catch { try { msg = await r.text(); } catch {} }
@@ -265,7 +255,7 @@
           addLog('web_save ERR export_invalid');
           throw new Error('export_invalid');
         }
-        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64 }) });
+        const r = await fetch(`${API_BASE}/api/v1/save-progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, base64: b64, platform: 'web' }) });
         if (!r.ok) {
           let msg = '';
           try { const j = await r.json(); msg = j && (j.error || j.message) || ''; } catch { try { msg = await r.text(); } catch {} }
@@ -337,13 +327,7 @@
             border: `1px solid ${(t && t.pillBg) || '#c7d2fe'}`, borderRadius: '6px', padding: '3px 8px', fontWeight: 600, width: '90%', textAlign: 'center'
           };
           const text = (b.title && b.message) ? `${b.title}: ${b.message}` : (b.title || '');
-          const actions = (b.state === 'update_available')
-            ? React.createElement('div', { style: { marginTop: '6px', display: 'flex', gap: '8px', justifyContent: 'center' } }, [
-                React.createElement('button', { key: 'r', className: 'ms-Button', onClick: refreshNow }, React.createElement('span', { className: 'ms-Button-label' }, 'Refresh document')),
-                React.createElement('button', { key: 'd', className: 'ms-Button', onClick: () => { const serverVersion = Number(config?.documentVersion || 0); if (serverVersion) setDismissedVersion(serverVersion); } }, React.createElement('span', { className: 'ms-Button-label' }, 'Dismiss'))
-              ])
-            : null;
-          return React.createElement('div', { key: `b-${i}`, style }, [text, actions]);
+          return React.createElement('div', { key: `b-${i}`, style }, text);
         })
       );
     }
@@ -445,7 +429,7 @@
 
     function DocumentControls() {
       const API_BASE = getApiBase();
-      const { revision, setDocumentSource, addLog } = React.useContext(StateContext);
+      const { revision, setDocumentSource, addLog, setLoadedVersion } = React.useContext(StateContext);
       const isWord = typeof Office !== 'undefined';
       const openNew = async () => {
         if (isWord) {
@@ -480,6 +464,14 @@
             const buf = await res.arrayBuffer();
             const b64 = (function(buf){ let bin=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.byteLength;i++) bin+=String.fromCharCode(bytes[i]); return btoa(bin); })(buf);
             await Word.run(async (context) => { context.document.body.insertFileFromBase64(b64, Word.InsertLocation.replace); await context.sync(); });
+            try {
+              const plat = 'word';
+              const u = `${API_BASE}/api/v1/state-matrix?platform=${plat}&clientVersion=0&userId=${encodeURIComponent('user1')}`;
+              const r = await fetch(u);
+              const j = await r.json();
+              const v = Number(j?.config?.documentVersion || 0);
+              if (v > 0) setLoadedVersion(v);
+            } catch {}
           } catch {}
         } else {
           try {
@@ -494,6 +486,14 @@
             const finalUrl = `${url}?rev=${revision || Date.now()}`;
             setDocumentSource(finalUrl);
             addLog(`doc src viewLatest -> ${finalUrl}`);
+            try {
+              const plat = 'web';
+              const u = `${API_BASE}/api/v1/state-matrix?platform=${plat}&clientVersion=0&userId=${encodeURIComponent('user1')}`;
+              const r = await fetch(u);
+              const j = await r.json();
+              const v = Number(j?.config?.documentVersion || 0);
+              if (v > 0) setLoadedVersion(v);
+            } catch {}
           } catch {}
         }
       };
