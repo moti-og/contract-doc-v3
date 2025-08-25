@@ -42,6 +42,9 @@ const serverState = {
   checkedOutBy: null,
   lastUpdated: new Date().toISOString(),
   revision: 1,
+  // Document update tracking (prototype)
+  documentVersion: 1,
+  updatedBy: null, // { userId, label }
 };
 
 // Load persisted state if available
@@ -53,17 +56,32 @@ try {
     if (saved.checkedOutBy === null || typeof saved.checkedOutBy === 'string') serverState.checkedOutBy = saved.checkedOutBy;
     if (typeof saved.lastUpdated === 'string') serverState.lastUpdated = saved.lastUpdated;
     if (typeof saved.revision === 'number') serverState.revision = saved.revision;
+    if (typeof saved.documentVersion === 'number') serverState.documentVersion = saved.documentVersion;
+    if (saved.updatedBy && typeof saved.updatedBy === 'object') serverState.updatedBy = saved.updatedBy;
   }
 } catch {}
 
 function persistState() {
   try {
-    fs.writeFileSync(stateFilePath, JSON.stringify({ isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated, revision: serverState.revision }, null, 2));
+    fs.writeFileSync(stateFilePath, JSON.stringify({ isFinal: serverState.isFinal, checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated, revision: serverState.revision, documentVersion: serverState.documentVersion, updatedBy: serverState.updatedBy }, null, 2));
   } catch {}
 }
 
 function bumpRevision() {
   serverState.revision = (Number(serverState.revision) || 0) + 1;
+  serverState.lastUpdated = new Date().toISOString();
+  persistState();
+}
+
+function bumpDocumentVersion(updatedByUserId) {
+  serverState.documentVersion = (Number(serverState.documentVersion) || 0) + 1;
+  const users = loadUsers();
+  let label = updatedByUserId || 'user1';
+  try {
+    const u = users.find(u => (u?.id || u?.label) === updatedByUserId);
+    if (u) label = u.label || u.id || updatedByUserId;
+  } catch {}
+  serverState.updatedBy = { userId: updatedByUserId || 'user1', label };
   serverState.lastUpdated = new Date().toISOString();
   persistState();
 }
@@ -302,6 +320,9 @@ app.get('/api/v1/state-matrix', (req, res) => {
   const banner = buildBanner({ isFinal: serverState.isFinal, isCheckedOut, isOwner, checkedOutBy: serverState.checkedOutBy });
   const config = {
     documentId: DOCUMENT_ID,
+    documentVersion: serverState.documentVersion,
+    lastUpdated: serverState.lastUpdated,
+    updatedBy: serverState.updatedBy,
     buttons: {
       replaceDefaultBtn: true,
       compileBtn: true,
@@ -325,6 +346,14 @@ app.get('/api/v1/state-matrix', (req, res) => {
     // Ordered banners for rendering in sequence on the client
     banners: (() => {
       const list = [banner];
+      // Update-notification banner (server compose; client only renders)
+      try {
+        const clientLoaded = Number(req.query?.clientVersion || 0);
+        if (serverState.documentVersion > clientLoaded) {
+          const by = serverState.updatedBy && (serverState.updatedBy.label || serverState.updatedBy.userId) || 'someone';
+          list.unshift({ state: 'update_available', title: 'Update available', message: `${by} updated this document.` });
+        }
+      } catch {}
       if (String(derivedRole).toLowerCase() === 'viewer') {
         list.push({ state: 'view_only', title: 'View Only', message: 'You can look but do not touch!' });
       }
@@ -395,8 +424,8 @@ app.post('/api/v1/document/upload', upload.single('file'), (req, res) => {
   const dest = path.join(workingDocumentsDir, 'default.docx');
   try {
     fs.copyFileSync(uploaded, dest);
-    serverState.lastUpdated = new Date().toISOString();
-    persistState();
+    bumpRevision();
+    bumpDocumentVersion(req.body?.userId || 'user1');
     broadcast({ type: 'documentUpload', name: 'default.docx' });
     res.json({ ok: true });
   } catch (e) {
@@ -407,8 +436,8 @@ app.post('/api/v1/document/upload', upload.single('file'), (req, res) => {
 app.post('/api/v1/document/revert', (req, res) => {
   const working = path.join(workingDocumentsDir, 'default.docx');
   if (fs.existsSync(working)) fs.rmSync(working);
-  serverState.lastUpdated = new Date().toISOString();
-  persistState();
+  bumpRevision();
+  bumpDocumentVersion(req.body?.userId || 'system');
   broadcast({ type: 'documentRevert' });
   res.json({ ok: true });
 });
@@ -430,6 +459,7 @@ app.post('/api/v1/save-progress', (req, res) => {
     const dest = path.join(workingDocumentsDir, 'default.docx');
     try { fs.writeFileSync(dest, bytes); } catch { return res.status(500).json({ error: 'write_failed' }); }
     bumpRevision();
+    bumpDocumentVersion(userId);
     broadcast({ type: 'saveProgress', userId, size: bytes.length });
     return res.json({ ok: true, revision: serverState.revision });
   } catch (e) {
@@ -476,6 +506,7 @@ app.post('/api/v1/factory-reset', (req, res) => {
     serverState.isFinal = false;
     serverState.checkedOutBy = null;
     bumpRevision();
+    bumpDocumentVersion('system');
     broadcast({ type: 'factoryReset' });
     // Also emit documentRevert to trigger existing client handlers
     broadcast({ type: 'documentRevert' });
