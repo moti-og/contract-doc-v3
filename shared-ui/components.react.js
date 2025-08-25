@@ -341,7 +341,6 @@
 
     function ActionButtons() {
       const { config, actions } = React.useContext(StateContext);
-      const { addLog, setDocumentSource } = React.useContext(StateContext);
       const [confirm, setConfirm] = React.useState(null);
       const { tokens } = React.useContext(ThemeContext);
       const btns = (config && config.buttons) ? config.buttons : {};
@@ -351,45 +350,12 @@
       };
       const add = (label, onClick, show, variant = 'secondary') => show ? React.createElement('button', { key: label, className: 'ms-Button', onClick: onClick, style: Object.assign({ margin: '4px' }, themed(variant)) }, React.createElement('span', { className: 'ms-Button-label' }, label)) : null;
       const ask = (title, message, onConfirm) => setConfirm({ title, message, onConfirm });
-      const API_BASE = getApiBase();
-      const onReplaceDefault = () => {
-        try {
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          input.onchange = async (e) => {
-            try {
-              const file = e.target && e.target.files && e.target.files[0];
-              if (!file) return;
-              const fd = new FormData();
-              fd.append('file', file, file.name || 'default.docx');
-              const r = await fetch(`${API_BASE}/api/v1/document/upload`, { method: 'POST', body: fd });
-              if (!r.ok) {
-                let msg = '';
-                try { const j = await r.json(); msg = j && (j.error || j.message) || ''; } catch { try { msg = await r.text(); } catch {} }
-                addLog(`replaceDefault ERR ${r.status} ${msg}`.trim());
-                return;
-              }
-              addLog('replaceDefault OK');
-              try {
-                const workingUrl = `${API_BASE}/documents/working/default.docx?rev=${Date.now()}`;
-                setDocumentSource(workingUrl);
-                addLog(`doc src set ${workingUrl}`);
-              } catch {}
-            } catch (err) {
-              try { addLog(`replaceDefault ERR ${err?.message||err}`); } catch {}
-            }
-          };
-          input.click();
-        } catch {}
-      };
       return React.createElement(React.Fragment, null,
         React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px' } }, [
           add('Checkout', actions.checkout, !!btns.checkoutBtn),
           add('Check-in and Save', async () => { try { const ok = await actions.saveProgress(); if (ok) { await actions.checkin(); } } catch {} }, !!btns.checkinBtn, 'primary'),
           add('Cancel Checkout', actions.cancel, !!btns.cancelBtn),
           add('Save Progress', actions.saveProgress, !!btns.saveProgressBtn, 'primary'),
-          add('Replace Default', onReplaceDefault, !!btns.replaceDefaultBtn),
           add('Finalize', () => ask('Finalize?', 'This will lock the document.', actions.finalize), !!btns.finalizeBtn, 'primary'),
           add('Unfinalize', () => ask('Unlock?', 'This will unlock the document.', actions.unfinalize), !!btns.unfinalizeBtn),
           add('Override Checkout', actions.override, !!btns.overrideBtn),
