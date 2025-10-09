@@ -2568,6 +2568,19 @@ app.get('/api/v1/events', (req, res) => {
 
 // HTTPS preferred; try Office dev certs, then PFX, else fail (unless ALLOW_HTTP=true)
 function tryCreateHttpsServer() {
+  // Check if HTTP is explicitly allowed first
+  const allowHttp = String(process.env.ALLOW_HTTP || '').toLowerCase() === 'true' || 
+                   String(process.env.NODE_ENV || '').toLowerCase() === 'test' ||
+                   isRender; // Render.com provides HTTPS at edge
+  if (allowHttp) {
+    if (isRender) {
+      console.log('🌐 Render.com detected - HTTPS handled at edge, using HTTP internally');
+    } else {
+      console.warn('⚠️ ALLOW_HTTP=true - HTTPS disabled for development');
+    }
+    return null;
+  }
+
   try {
     // 1) Office dev certs (shared with add-in 4000)
     try {
@@ -2593,17 +2606,7 @@ function tryCreateHttpsServer() {
       return https.createServer(opts, app);
     }
   } catch { /* ignore */ }
-  const allowHttp = String(process.env.ALLOW_HTTP || '').toLowerCase() === 'true' || 
-                   String(process.env.NODE_ENV || '').toLowerCase() === 'test' ||
-                   isRender; // Render.com provides HTTPS at edge
-  if (allowHttp) {
-    if (isRender) {
-      console.log('🌐 Render.com detected - HTTPS handled at edge, using HTTP internally');
-    } else {
-      console.warn('⚠️ ALLOW_HTTP=true - HTTPS disabled for development');
-    }
-    return null;
-  }
+  
   throw new Error('No HTTPS certificate available. Install Office dev certs or provide server/config/dev-cert.pfx. Set ALLOW_HTTP=true to use HTTP for dev only.');
 }
 
