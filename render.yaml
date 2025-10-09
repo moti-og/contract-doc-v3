@@ -19,6 +19,8 @@ services:
         value: true
       - key: RENDER
         value: true
+      - key: USE_MEMORY_STORAGE
+        value: true
       - key: SUPERDOC_BASE_URL
         fromService:
           type: web
