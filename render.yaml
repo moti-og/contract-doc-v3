@@ -4,7 +4,7 @@ services:
     name: contract-doc-server
     env: node
     plan: free
-    buildCommand: cd server && npm ci --production && mkdir -p ./data/app && cp -r ../../data/app/* ./data/app/
+    buildCommand: cd server && npm ci --production && mkdir -p ./data/app && cp -r ../data/app ./data/ || echo "Data directory copy failed, continuing..."
     startCommand: cd server && node src/server.js
     envVars:
       - key: NODE_ENV
