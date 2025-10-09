@@ -38,9 +38,5 @@ services:
       - key: SUPERDOC_PORT
         value: 4100
 
-  # Word add-in static assets
-  - type: static
-    name: contract-doc-addin
-    plan: free
-    buildCommand: cd addin && npm ci && npm run build
-    staticPublishPath: addin/dist
+  # Web client is served by the main server (contract-doc-server)
+  # No separate static site needed - the main server serves /view, /vendor/, /ui/, /web/
