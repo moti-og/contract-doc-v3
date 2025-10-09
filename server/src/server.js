@@ -114,6 +114,10 @@ async function getSystemPrompt() {
 const APP_PORT = Number(process.env.PORT || 4001);
 const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || 'http://localhost:4002';
 const ADDIN_DEV_ORIGIN = process.env.ADDIN_DEV_ORIGIN || 'https://localhost:4000';
+
+// Production vs Development mode detection
+const isProduction = process.env.NODE_ENV === 'production';
+const isRender = process.env.RENDER === 'true'; // Render.com sets this
 const SSE_RETRY_MS = (() => {
   const v = Number(process.env.SSE_RETRY_MS || 3000);
   return Number.isFinite(v) && v > 0 ? v : 3000;
@@ -806,22 +810,49 @@ function broadcast(event) {
 // Express app
 const app = express();
 app.use(compression());
+
+// Production security headers
+if (isProduction) {
+  app.use((req, res, next) => {
+    // Security headers for production
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+  });
+}
+
 // JSON body limit must accommodate DOCX base64 payloads for save-progress
 app.use(express.json({ limit: '50mb' }));
 
-// CORS for Yeoman add-in dev server
+// CORS configuration for development and production
 const allowedOrigins = new Set([
   ADDIN_DEV_ORIGIN,
+  // Add production origins for Render deployment
+  ...(isRender ? [
+    'https://contract-doc-addin.onrender.com',
+    'https://contract-doc-server.onrender.com'
+  ] : [])
 ]);
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.has(origin)) {
+  
+  // Allow same-origin requests (web client)
+  if (!origin) {
+    return next();
+  }
+  
+  // Check if origin is allowed
+  if (allowedOrigins.has(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   }
+  
   if (req.method === 'OPTIONS') return res.status(204).end();
   next();
 });
@@ -843,7 +874,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // WebSocket reverse proxy for collaboration under same HTTPS origin
-const COLLAB_TARGET = process.env.COLLAB_TARGET || 'http://localhost:4002';
+const COLLAB_TARGET = process.env.COLLAB_TARGET || SUPERDOC_BASE_URL;
 const collabProxy = createProxyMiddleware({
   target: COLLAB_TARGET,
   changeOrigin: true,
@@ -2552,8 +2583,17 @@ function tryCreateHttpsServer() {
       return https.createServer(opts, app);
     }
   } catch { /* ignore */ }
-  const allowHttp = String(process.env.ALLOW_HTTP || '').toLowerCase() === 'true' || String(process.env.NODE_ENV || '').toLowerCase() === 'test';
-  if (allowHttp) return null;
+  const allowHttp = String(process.env.ALLOW_HTTP || '').toLowerCase() === 'true' || 
+                   String(process.env.NODE_ENV || '').toLowerCase() === 'test' ||
+                   isRender; // Render.com provides HTTPS at edge
+  if (allowHttp) {
+    if (isRender) {
+      console.log('🌐 Render.com detected - HTTPS handled at edge, using HTTP internally');
+    } else {
+      console.warn('⚠️ ALLOW_HTTP=true - HTTPS disabled for development');
+    }
+    return null;
+  }
   throw new Error('No HTTPS certificate available. Install Office dev certs or provide server/config/dev-cert.pfx. Set ALLOW_HTTP=true to use HTTP for dev only.');
 }
 
@@ -2587,14 +2627,22 @@ let serverInstance;
 if (httpsServer) {
   serverInstance = httpsServer;
   httpsServer.listen(APP_PORT, () => {
-    console.log(`HTTPS server running on https://localhost:${APP_PORT}`);
+    if (isRender) {
+      console.log(`🚀 Server running on port ${APP_PORT} (HTTPS handled by Render)`);
+    } else {
+      console.log(`HTTPS server running on https://localhost:${APP_PORT}`);
+    }
     console.log(`SuperDoc backend: ${SUPERDOC_BASE_URL}`);
   });
 } else {
   serverInstance = http.createServer(app);
   serverInstance.listen(APP_PORT, () => {
-    console.warn(`ALLOW_HTTP=true enabled. HTTP server running on http://localhost:${APP_PORT}`);
-    console.warn('Install Office dev certs (preferred) or place dev-cert.pfx under server/config to enable HTTPS.');
+    if (isRender) {
+      console.log(`🚀 Server running on port ${APP_PORT} (HTTPS handled by Render)`);
+    } else {
+      console.warn(`ALLOW_HTTP=true enabled. HTTP server running on http://localhost:${APP_PORT}`);
+      console.warn('Install Office dev certs (preferred) or place dev-cert.pfx under server/config to enable HTTPS.');
+    }
   });
 }
 

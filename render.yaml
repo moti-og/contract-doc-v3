@@ -1,0 +1,49 @@
+services:
+  # Main server - serves API, frontend, and static assets
+  - type: web
+    name: contract-doc-server
+    env: node
+    plan: free
+    buildCommand: cd server && npm ci
+    startCommand: cd server && node src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LLM_PROVIDER
+        value: ollama
+      - key: OLLAMA_MODEL
+        value: gemma3:1b
+      - key: OLLAMA_BASE_URL
+        value: http://localhost:11434
+      - key: ALLOW_HTTP
+        value: true
+      - key: SUPERDOC_BASE_URL
+        fromService:
+          type: web
+          name: contract-doc-collab
+          property: host
+
+  # Collaboration backend - WebSocket server for real-time editing
+  - type: web
+    name: contract-doc-collab
+    env: node
+    plan: free
+    buildCommand: cd collab && npm ci
+    startCommand: cd collab && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPERDOC_PORT
+        value: 4100
+
+  # Word add-in static assets
+  - type: web
+    name: contract-doc-addin
+    env: static
+    plan: free
+    buildCommand: cd addin && npm ci && npm run build
+    staticPublishPath: addin/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -1,14 +1,14 @@
 {
-  "checkedOutBy": null,
-  "lastUpdated": "2025-10-04T16:42:49.028Z",
-  "revision": 761,
-  "documentVersion": 2,
+  "checkedOutBy": "user2",
+  "lastUpdated": "2025-10-09T14:52:31.962Z",
+  "revision": 764,
+  "documentVersion": 3,
   "title": "Contract Management",
   "status": "draft",
   "updatedBy": {
-    "userId": "user2",
-    "label": "Kent Uckey"
+    "userId": "user1",
+    "label": "Warren Peace"
   },
-  "updatedPlatform": "word",
-  "approvalsRevision": 323
+  "updatedPlatform": "web",
+  "approvalsRevision": 324
 }

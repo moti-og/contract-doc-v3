@@ -59,7 +59,12 @@
           const superdocInstance = mountSuperdoc({
             selector: '#superdoc',
             toolbar: '#superdoc-toolbar',
-            document: 'https://localhost:4001/documents/working/default.docx',
+            document: (function() {
+              // Use current origin for production, localhost for development
+              const isLocalhost = window.location.hostname === 'localhost';
+              const baseUrl = isLocalhost ? 'https://localhost:4001' : window.location.origin;
+              return `${baseUrl}/documents/working/default.docx`;
+            })(),
             documentMode: 'editing',
             pagination: false,
             rulers: false

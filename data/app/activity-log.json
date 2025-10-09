@@ -1,156 +1,71 @@
 [
   {
-    "id": "act_1759564230413_15q8xfqat",
-    "timestamp": 1759564230413,
-    "type": "system:error",
+    "id": "act_1760021506843_vd1ilyipc",
+    "timestamp": 1760021506843,
+    "type": "document:checkout",
     "user": {
-      "id": "system",
-      "label": "system",
+      "id": "user1",
+      "label": "Warren Peace",
       "platform": "web"
     },
-    "action": "encountered error",
-    "target": "system",
-    "details": {
-      "error": "LLM error: Request timeout",
-      "source": "llm",
-      "userId": "system",
-      "user": {
-        "id": "system",
-        "label": "system",
-        "platform": "web"
-      }
-    },
-    "message": "System error: LLM error: Request timeout"
+    "action": "checked out",
+    "target": "document",
+    "details": {},
+    "message": "Warren Peace checked out document"
   },
   {
-    "id": "act_1759564247228_nmw9tjwy0",
-    "timestamp": 1759564247228,
-    "type": "system:error",
+    "id": "act_1760021527231_o9yungn15",
+    "timestamp": 1760021527231,
+    "type": "document:save",
     "user": {
-      "id": "system",
-      "label": "system",
+      "id": "user1",
+      "label": "Warren Peace",
       "platform": "web"
     },
-    "action": "encountered error",
-    "target": "system",
+    "action": "saved progress",
+    "target": "document",
     "details": {
-      "error": "LLM error: Request timeout",
-      "source": "llm",
-      "userId": "system",
-      "user": {
-        "id": "system",
-        "label": "system",
-        "platform": "web"
-      }
+      "autoSave": false,
+      "version": 2
     },
-    "message": "System error: LLM error: Request timeout"
+    "message": "Warren Peace saved a new version of the document (v2)"
   },
   {
-    "id": "act_1759564273430_xa7t805a7",
-    "timestamp": 1759564273430,
-    "type": "system:error",
+    "id": "act_1760021542874_9tua9ft12",
+    "timestamp": 1760021542874,
+    "type": "document:save",
     "user": {
-      "id": "system",
-      "label": "system",
+      "id": "user1",
+      "label": "Warren Peace",
       "platform": "web"
     },
-    "action": "encountered error",
-    "target": "system",
+    "action": "saved progress",
+    "target": "document",
     "details": {
-      "error": "LLM error: Request timeout",
-      "source": "llm",
-      "userId": "system",
-      "user": {
-        "id": "system",
-        "label": "system",
-        "platform": "web"
-      }
+      "autoSave": false,
+      "version": 3
     },
-    "message": "System error: LLM error: Request timeout"
+    "message": "Warren Peace saved a new version of the document (v3)"
   },
   {
-    "id": "act_1759596142081_gttd9ph0w",
-    "timestamp": 1759596142081,
-    "type": "workflow:approve",
+    "id": "act_1760021542894_gw7ecexll",
+    "timestamp": 1760021542894,
+    "type": "document:checkin",
     "user": {
-      "id": "user2",
-      "label": "Kent Uckey",
+      "id": "user1",
+      "label": "Warren Peace",
       "platform": "web"
     },
-    "action": "approved",
-    "target": "workflow",
+    "action": "checked in",
+    "target": "document",
     "details": {
-      "targetUserId": "user2",
-      "progress": {
-        "approved": 1,
-        "total": 5
-      }
+      "version": 3
     },
-    "message": "Kent Uckey approved (1/5)"
+    "message": "Warren Peace checked in document (v3)"
   },
   {
-    "id": "act_1759596143584_8t75e8llp",
-    "timestamp": 1759596143584,
-    "type": "workflow:approve",
-    "user": {
-      "id": "user2",
-      "label": "Kent Uckey",
-      "platform": "web"
-    },
-    "action": "approved",
-    "target": "workflow",
-    "details": {
-      "targetUserId": "user3",
-      "progress": {
-        "approved": 2,
-        "total": 5
-      }
-    },
-    "message": "Kent Uckey approved on behalf of Yuri Lee Laffed (2/5)"
-  },
-  {
-    "id": "act_1759596145834_psbzog97h",
-    "timestamp": 1759596145834,
-    "type": "workflow:approve",
-    "user": {
-      "id": "user2",
-      "label": "Kent Uckey",
-      "platform": "web"
-    },
-    "action": "approved",
-    "target": "workflow",
-    "details": {
-      "targetUserId": "user4",
-      "progress": {
-        "approved": 3,
-        "total": 5
-      }
-    },
-    "message": "Kent Uckey approved on behalf of Hugh R Ewe (3/5)"
-  },
-  {
-    "id": "act_1759596147139_rphtttn1v",
-    "timestamp": 1759596147139,
-    "type": "workflow:approve",
-    "user": {
-      "id": "user2",
-      "label": "Kent Uckey",
-      "platform": "web"
-    },
-    "action": "approved",
-    "target": "workflow",
-    "details": {
-      "targetUserId": "user5",
-      "progress": {
-        "approved": 4,
-        "total": 5
-      }
-    },
-    "message": "Kent Uckey approved on behalf of Gettysburger King (4/5)"
-  },
-  {
-    "id": "act_1759596147941_iycs2n5xk",
-    "timestamp": 1759596147941,
+    "id": "act_1760021551963_5u2hoho1f",
+    "timestamp": 1760021551963,
     "type": "document:checkout",
     "user": {
       "id": "user2",
@@ -161,38 +76,5 @@
     "target": "document",
     "details": {},
     "message": "Kent Uckey checked out document"
-  },
-  {
-    "id": "act_1759596168948_qanguic9h",
-    "timestamp": 1759596168948,
-    "type": "document:save",
-    "user": {
-      "id": "user2",
-      "label": "Kent Uckey",
-      "platform": "web"
-    },
-    "action": "saved progress",
-    "target": "document",
-    "details": {
-      "autoSave": false,
-      "version": 2
-    },
-    "message": "Kent Uckey saved a new version of the document (v2)"
-  },
-  {
-    "id": "act_1759596169029_o8lzpqafi",
-    "timestamp": 1759596169029,
-    "type": "document:checkin",
-    "user": {
-      "id": "user2",
-      "label": "Kent Uckey",
-      "platform": "web"
-    },
-    "action": "checked in",
-    "target": "document",
-    "details": {
-      "version": 2
-    },
-    "message": "Kent Uckey checked in document (v2)"
   }
 ]
