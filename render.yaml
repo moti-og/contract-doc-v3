@@ -47,8 +47,8 @@ services:
     name: contract-doc-addin
     env: node
     plan: free
-    buildCommand: cd addin && npm ci --production=false && npm install -D serve && npx webpack --mode production
-    startCommand: npx serve -s addin/dist -l 10000
+    buildCommand: cd addin && npm ci --production=false && npm run build
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
