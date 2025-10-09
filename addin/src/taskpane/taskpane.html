@@ -1,84 +1,111 @@
 <!-- Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT License. -->
 <!-- This file shows how to design a first-run page that provides a welcome screen to the user about the features of the add-in. -->
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OG CLM Task Pane</title>
 
     <!-- Office JavaScript API -->
-    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script
+      type="text/javascript"
+      src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"
+    ></script>
 
     <!-- For more information on Fluent UI, visit https://developer.microsoft.com/fluentui#/. -->
-    <link rel="stylesheet" href="https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/office-ui-fabric-core/11.1.0/css/fabric.min.css"/>
+    <link
+      rel="stylesheet"
+      href="https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/office-ui-fabric-core/11.1.0/css/fabric.min.css"
+    />
 
     <!-- Template styles -->
     <link href="taskpane.css" rel="stylesheet" type="text/css" />
     <!-- Branding from server -->
     <link href="/web/branding.css?v=brand-chat-align" rel="stylesheet" type="text/css" />
-</head>
+  </head>
 
-<body class="ms-font-m ms-welcome ms-Fabric">
-  <header class="ms-welcome__header ms-bgColor-neutralLighter addin-header brand-header-bg addin-header-layout">
-    <div class="addin-header-left">
-      <img class="brand-img" src="/web/assets/opengov-logo.png" alt="OpenGov" title="Redline Like You Mean It" />
-    </div>
-    <div class="header-actions">
-      <button onclick="openNewDocument()" class="btn btn--secondary">Open A Doc</button>
-    </div>
-  </header>
+  <body class="ms-font-m ms-welcome ms-Fabric">
+    <header
+      class="ms-welcome__header ms-bgColor-neutralLighter addin-header brand-header-bg addin-header-layout"
+    >
+      <div class="addin-header-left">
+        <img
+          class="brand-img"
+          src="/web/assets/opengov-logo.png"
+          alt="OpenGov"
+          title="Redline Like You Mean It"
+        />
+      </div>
+      <div class="header-actions">
+        <button onclick="openNewDocument()" class="btn btn--secondary">Open A Doc</button>
+      </div>
+    </header>
     <section id="sideload-msg" class="ms-welcome__main is-hidden">
-        <h2 class="ms-font-xl">Loading...</h2>
+      <h2 class="ms-font-xl">Loading...</h2>
     </section>
     <main id="app-body" class="app-main">
-        <!-- Hidden SuperDoc container for field annotations API -->
-        <div id="superdoc-container" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none;">
-          <div id="superdoc-toolbar"></div>
-          <div id="superdoc"></div>
-        </div>
-        <div id="app-root" class="w-full"></div>
+      <!-- Hidden SuperDoc container for field annotations API -->
+      <div
+        id="superdoc-container"
+        style="
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          opacity: 0;
+          overflow: hidden;
+          pointer-events: none;
+        "
+      >
+        <div id="superdoc-toolbar"></div>
+        <div id="superdoc"></div>
+      </div>
+      <div id="app-root" class="w-full"></div>
     </main>
-    
+
     <!-- SuperDoc initialization for field annotations -->
     <link href="/vendor/superdoc/style.css" rel="stylesheet" />
     <script type="module">
-      import { ensureSuperDocLoaded, mountSuperdoc } from '/web/superdoc-init.js?v=fieldannotations-1';
-      
+      import {
+        ensureSuperDocLoaded,
+        mountSuperdoc,
+      } from "/web/superdoc-init.js?v=fieldannotations-1";
+
       // Initialize SuperDoc immediately and signal when ready
       window.superdocReady = (async () => {
         try {
           await ensureSuperDocLoaded();
-          console.log('✅ SuperDoc loaded in Word add-in');
-          
+          console.log("✅ SuperDoc loaded in Word add-in");
+
           // Mount SuperDoc to access field annotation commands
           // Document loaded here should match what's open in Word
           const superdocInstance = mountSuperdoc({
-            selector: '#superdoc',
-            toolbar: '#superdoc-toolbar',
-            document: (function() {
-              // Use current origin for production, localhost for development
-              const isLocalhost = window.location.hostname === 'localhost';
-              const baseUrl = isLocalhost ? 'https://localhost:4001' : window.location.origin;
+            selector: "#superdoc",
+            toolbar: "#superdoc-toolbar",
+            document: (function () {
+              // Use localhost for development, main server for production
+              const isLocalhost = window.location.hostname === "localhost";
+              const baseUrl = isLocalhost
+                ? "https://localhost:4001"
+                : "https://contract-doc-server.onrender.com";
               return `${baseUrl}/documents/working/default.docx`;
             })(),
-            documentMode: 'editing',
+            documentMode: "editing",
             pagination: false,
-            rulers: false
+            rulers: false,
           });
-          
-          console.log('✅ SuperDoc field annotation API available in Word add-in');
+
+          console.log("✅ SuperDoc field annotation API available in Word add-in");
           return true;
         } catch (error) {
-          console.error('❌ Failed to load SuperDoc in Word add-in:', error);
+          console.error("❌ Failed to load SuperDoc in Word add-in:", error);
           return false;
         }
       })();
     </script>
-    
+
     <!-- Preload and load React UMD locally via backend proxy -->
     <link rel="preload" as="script" href="/vendor/react/react.production.min.js" />
     <link rel="preload" as="script" href="/vendor/react/react-dom.production.min.js" />
@@ -86,25 +113,30 @@
     <script defer src="/vendor/react/react-dom.production.min.js"></script>
     <script defer src="/ui/components.react.js?v=banner-web-offset"></script>
     <script>
-      (function(){
-        function randInt(min, max){ return Math.floor(Math.random() * (max - min + 1)) + min; }
-        function hexToRgb(hex){
+      (function () {
+        function randInt(min, max) {
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        function hexToRgb(hex) {
           var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-          return m ? { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) } : null;
+          return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
         }
         function tryMount() {
           try {
             var hasReact = !!(window.React && window.ReactDOM && window.ReactDOM.createRoot);
             var hasEntry = !!window.mountReactApp;
             if (!hasReact || !hasEntry) return false;
-            document.getElementById('sideload-msg').style.display = 'none';
-            document.getElementById('app-body').style.display = 'block';
-            window.mountReactApp({ rootSelector: '#app-root' });
+            document.getElementById("sideload-msg").style.display = "none";
+            document.getElementById("app-body").style.display = "block";
+            window.mountReactApp({ rootSelector: "#app-root" });
             return true;
           } catch (e) {
             try {
-              const el = document.getElementById('app-root');
-              el.innerHTML = '<div style="padding:8px;color:crimson">Failed to initialize: '+ (e && (e.message||e)) +'</div>';
+              const el = document.getElementById("app-root");
+              el.innerHTML =
+                '<div style="padding:8px;color:crimson">Failed to initialize: ' +
+                (e && (e.message || e)) +
+                "</div>";
             } catch {}
             return true; // stop retrying if we displayed an error
           }
@@ -113,41 +145,62 @@
           // Wait for SuperDoc to be ready before mounting React
           if (window.superdocReady) {
             try {
-              console.log('⏳ Waiting for SuperDoc to initialize...');
+              console.log("⏳ Waiting for SuperDoc to initialize...");
               await window.superdocReady;
-              console.log('✅ SuperDoc ready, proceeding with React mount');
+              console.log("✅ SuperDoc ready, proceeding with React mount");
             } catch (err) {
-              console.warn('⚠️ SuperDoc initialization failed, proceeding anyway:', err);
+              console.warn("⚠️ SuperDoc initialization failed, proceeding anyway:", err);
             }
           }
-          
+
           // Only show the loading message if mount takes noticeable time
-          var showLoadingTimer = setTimeout(function(){
-            try { document.getElementById('sideload-msg').style.display = 'block'; } catch {}
+          var showLoadingTimer = setTimeout(function () {
+            try {
+              document.getElementById("sideload-msg").style.display = "block";
+            } catch {}
           }, 300);
           var attempts = 0;
-          (function waitForEntry(){
+          (function waitForEntry() {
             attempts++;
-            if (tryMount()) { try { clearTimeout(showLoadingTimer); } catch {}; return; }
-            if (attempts < 60) { setTimeout(waitForEntry, 100); } else { try { clearTimeout(showLoadingTimer); } catch {} }
+            if (tryMount()) {
+              try {
+                clearTimeout(showLoadingTimer);
+              } catch {}
+              return;
+            }
+            if (attempts < 60) {
+              setTimeout(waitForEntry, 100);
+            } else {
+              try {
+                clearTimeout(showLoadingTimer);
+              } catch {}
+            }
           })();
         }
-        if (window.Office && typeof Office.onReady === 'function') {
-          try { Office.onReady(function(info){ try { console.log('Office.ready host:', info && info.host); } catch {}; start(); }); } catch { start(); }
+        if (window.Office && typeof Office.onReady === "function") {
+          try {
+            Office.onReady(function (info) {
+              try {
+                console.log("Office.ready host:", info && info.host);
+              } catch {}
+              start();
+            });
+          } catch {
+            start();
+          }
         } else {
           // Fallback: ensure we never block rendering if Office.js fails to bootstrap
-          if (document.readyState === 'complete' || document.readyState === 'interactive') {
+          if (document.readyState === "complete" || document.readyState === "interactive") {
             setTimeout(start, 0);
           } else {
-            document.addEventListener('DOMContentLoaded', start);
+            document.addEventListener("DOMContentLoaded", start);
           }
         }
       })();
 
       function openNewDocument() {
-        window.dispatchEvent(new CustomEvent('open-new-document'));
+        window.dispatchEvent(new CustomEvent("open-new-document"));
       }
     </script>
-</body>
-
+  </body>
 </html>
