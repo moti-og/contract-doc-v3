@@ -84,14 +84,14 @@
           const superdocInstance = mountSuperdoc({
             selector: "#superdoc",
             toolbar: "#superdoc-toolbar",
-            document: (function () {
-              // Use localhost for development, main server for production
-              const isLocalhost = window.location.hostname === "localhost";
-              const baseUrl = isLocalhost
-                ? "https://localhost:4001"
-                : "https://contract-doc-server.onrender.com";
-              return `${baseUrl}/documents/working/default.docx`;
-            })(),
+             document: (function () {
+               // Use localhost for development, main server for production
+               const isLocalhost = window.location.hostname === "localhost";
+               const baseUrl = isLocalhost
+                 ? "https://localhost:4001"
+                 : "https://contract-doc-server.onrender.com";
+               return `${baseUrl}/documents/canonical/default.docx`;
+             })(),
             documentMode: "editing",
             pagination: false,
             rulers: false,
