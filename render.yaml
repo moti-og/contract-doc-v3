@@ -48,7 +48,7 @@ services:
     env: node
     plan: free
     buildCommand: cd addin && npm ci --production=false && npm run build
-    startCommand: node server.js
+    startCommand: cd addin && node server.js
     envVars:
       - key: NODE_ENV
         value: production
