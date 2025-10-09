@@ -42,5 +42,14 @@ services:
       - key: SUPERDOC_PORT
         value: 4100
 
+  # Word Add-in - Static site serving add-in files
+  - type: static
+    name: contract-doc-addin
+    buildCommand: cd addin && npm ci && npm run build
+    publishDirectory: addin/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
   # Web client is served by the main server (contract-doc-server)
   # No separate static site needed - the main server serves /view, /vendor/, /ui/, /web/
