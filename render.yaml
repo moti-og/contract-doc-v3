@@ -43,10 +43,12 @@ services:
         value: 4100
 
   # Word Add-in - Static site serving add-in files
-  - type: static
+  - type: web
     name: contract-doc-addin
+    env: node
+    plan: free
     buildCommand: cd addin && npm ci && npm run build
-    publishDirectory: addin/dist
+    startCommand: npx serve -s addin/dist -l 10000
     envVars:
       - key: NODE_ENV
         value: production
