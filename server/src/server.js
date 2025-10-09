@@ -82,8 +82,13 @@ async function loadDocumentContext() {
 
 // Load document context on startup (preloaded)
 (async () => {
-  await loadDocumentContext();
-  console.log('✅ Document context ready for LLM');
+  try {
+    await loadDocumentContext();
+    console.log('✅ Document context ready for LLM');
+  } catch (error) {
+    console.warn('⚠️ Failed to load document context on startup:', error.message);
+    console.log('📄 Server will continue without document context');
+  }
 })();
 
 // Function to get current system prompt (document preloaded on startup)
@@ -112,7 +117,7 @@ async function getSystemPrompt() {
 
 // Configuration
 const APP_PORT = Number(process.env.PORT || 4001);
-const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || 'http://localhost:4002';
+const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || process.env.SUPERDOC_FALLBACK_URL || 'http://localhost:4002';
 const ADDIN_DEV_ORIGIN = process.env.ADDIN_DEV_ORIGIN || 'https://localhost:4000';
 
 // Production vs Development mode detection
@@ -2620,13 +2625,18 @@ function initializeVariables() {
 }
 
 // Initialize on startup
-initializeVariables();
+try {
+  initializeVariables();
+} catch (error) {
+  console.warn('⚠️ Failed to initialize variables:', error.message);
+  console.log('📦 Server will continue with default variables');
+}
 
 const httpsServer = tryCreateHttpsServer();
 let serverInstance;
 if (httpsServer) {
   serverInstance = httpsServer;
-  httpsServer.listen(APP_PORT, () => {
+  httpsServer.listen(APP_PORT, '0.0.0.0', () => {
     if (isRender) {
       console.log(`🚀 Server running on port ${APP_PORT} (HTTPS handled by Render)`);
     } else {
@@ -2636,7 +2646,7 @@ if (httpsServer) {
   });
 } else {
   serverInstance = http.createServer(app);
-  serverInstance.listen(APP_PORT, () => {
+  serverInstance.listen(APP_PORT, '0.0.0.0', () => {
     if (isRender) {
       console.log(`🚀 Server running on port ${APP_PORT} (HTTPS handled by Render)`);
     } else {

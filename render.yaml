@@ -24,6 +24,8 @@ services:
           type: web
           name: contract-doc-collab
           property: host
+      - key: SUPERDOC_FALLBACK_URL
+        value: http://contract-doc-collab.onrender.com
 
   # Collaboration backend - WebSocket server for real-time editing
   - type: web
