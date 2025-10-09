@@ -4,7 +4,7 @@ services:
     name: contract-doc-server
     env: node
     plan: free
-    buildCommand: cd server && npm ci
+    buildCommand: cd server && npm ci --production
     startCommand: cd server && node src/server.js
     envVars:
       - key: NODE_ENV
@@ -17,6 +17,8 @@ services:
         value: http://localhost:11434
       - key: ALLOW_HTTP
         value: true
+      - key: RENDER
+        value: true
       - key: SUPERDOC_BASE_URL
         fromService:
           type: web
@@ -28,7 +30,7 @@ services:
     name: contract-doc-collab
     env: node
     plan: free
-    buildCommand: cd collab && npm ci
+    buildCommand: cd collab && npm install
     startCommand: cd collab && node server.js
     envVars:
       - key: NODE_ENV
