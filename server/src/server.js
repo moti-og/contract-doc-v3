@@ -80,8 +80,8 @@ async function loadDocumentContext() {
   }
 }
 
-// Load document context on startup (preloaded)
-(async () => {
+// Load document context on startup (preloaded) - non-blocking
+setImmediate(async () => {
   try {
     await loadDocumentContext();
     console.log('✅ Document context ready for LLM');
@@ -89,7 +89,7 @@ async function loadDocumentContext() {
     console.warn('⚠️ Failed to load document context on startup:', error.message);
     console.log('📄 Server will continue without document context');
   }
-})();
+});
 
 // Function to get current system prompt (document preloaded on startup)
 async function getSystemPrompt() {
@@ -967,6 +967,11 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, file.originalname),
 });
 const upload = multer({ storage });
+
+// Simple health check for Render
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // API v1
 app.get('/api/v1/health', (req, res) => {
@@ -2624,35 +2629,40 @@ function initializeVariables() {
   }
 }
 
-// Initialize on startup
-try {
-  initializeVariables();
-} catch (error) {
-  console.warn('⚠️ Failed to initialize variables:', error.message);
-  console.log('📦 Server will continue with default variables');
-}
+// Initialize on startup - non-blocking
+setImmediate(() => {
+  try {
+    initializeVariables();
+  } catch (error) {
+    console.warn('⚠️ Failed to initialize variables:', error.message);
+    console.log('📦 Server will continue with default variables');
+  }
+});
 
 const httpsServer = tryCreateHttpsServer();
 let serverInstance;
 if (httpsServer) {
   serverInstance = httpsServer;
   httpsServer.listen(APP_PORT, '0.0.0.0', () => {
+    console.log(`🚀 HTTPS Server listening on 0.0.0.0:${APP_PORT}`);
     if (isRender) {
-      console.log(`🚀 Server running on port ${APP_PORT} (HTTPS handled by Render)`);
+      console.log(`🌐 Render deployment - HTTPS handled at edge`);
     } else {
-      console.log(`HTTPS server running on https://localhost:${APP_PORT}`);
+      console.log(`🔒 HTTPS server running on https://localhost:${APP_PORT}`);
     }
-    console.log(`SuperDoc backend: ${SUPERDOC_BASE_URL}`);
+    console.log(`🔗 SuperDoc backend: ${SUPERDOC_BASE_URL}`);
   });
 } else {
   serverInstance = http.createServer(app);
   serverInstance.listen(APP_PORT, '0.0.0.0', () => {
+    console.log(`🚀 HTTP Server listening on 0.0.0.0:${APP_PORT}`);
     if (isRender) {
-      console.log(`🚀 Server running on port ${APP_PORT} (HTTPS handled by Render)`);
+      console.log(`🌐 Render deployment - HTTPS handled at edge`);
     } else {
-      console.warn(`ALLOW_HTTP=true enabled. HTTP server running on http://localhost:${APP_PORT}`);
-      console.warn('Install Office dev certs (preferred) or place dev-cert.pfx under server/config to enable HTTPS.');
+      console.warn(`⚠️ ALLOW_HTTP=true enabled. HTTP server running on http://localhost:${APP_PORT}`);
+      console.warn('🔒 Install Office dev certs (preferred) or place dev-cert.pfx under server/config to enable HTTPS.');
     }
+    console.log(`🔗 SuperDoc backend: ${SUPERDOC_BASE_URL}`);
   });
 }
 
