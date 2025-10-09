@@ -5,9 +5,20 @@
   const win = typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : this);
 
   function getApiBase() {
-    // Always use the API server port (4001), not the dev server port (4000)
-    // The dev server (4000) is for serving the add-in HTML/JS
-    // The API server (4001) is for all backend API calls
+    // Determine the correct API base URL based on environment
+    if (typeof window !== 'undefined' && window.location) {
+      const { protocol, hostname, port } = window.location;
+      
+      // In production (deployed), use the current domain
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        return `${protocol}//${hostname}${port ? ':' + port : ''}`;
+      }
+      
+      // In development, use localhost:4001 for API calls
+      return 'https://localhost:4001';
+    }
+    
+    // Fallback for server-side rendering or other contexts
     return 'https://localhost:4001';
   }
 
