@@ -30,7 +30,7 @@ services:
     name: contract-doc-collab
     env: node
     plan: free
-    buildCommand: cd collab && npm install
+    buildCommand: cd collab && npm ci
     startCommand: cd collab && node server.js
     envVars:
       - key: NODE_ENV
