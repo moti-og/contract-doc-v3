@@ -80,11 +80,16 @@ async function loadDocumentContext() {
   }
 }
 
-// Load document context on startup (preloaded)
-(async () => {
-  await loadDocumentContext();
-  console.log('✅ Document context ready for LLM');
-})();
+// Load document context on startup (preloaded) - non-blocking
+setImmediate(async () => {
+  try {
+    await loadDocumentContext();
+    console.log('✅ Document context ready for LLM');
+  } catch (error) {
+    console.warn('⚠️ Failed to load document context on startup:', error.message);
+    console.log('📄 Server will continue without document context');
+  }
+});
 
 // Function to get current system prompt (document preloaded on startup)
 async function getSystemPrompt() {
@@ -112,8 +117,13 @@ async function getSystemPrompt() {
 
 // Configuration
 const APP_PORT = Number(process.env.PORT || 4001);
-const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || 'http://localhost:4002';
+const SUPERDOC_BASE_URL = process.env.SUPERDOC_BASE_URL || process.env.SUPERDOC_FALLBACK_URL || 'http://localhost:4002';
 const ADDIN_DEV_ORIGIN = process.env.ADDIN_DEV_ORIGIN || 'https://localhost:4000';
+
+// Production vs Development mode detection
+const isProduction = process.env.NODE_ENV === 'production';
+const isRender = process.env.RENDER === 'true'; // Render.com sets this
+const useMemoryStorage = process.env.USE_MEMORY_STORAGE === 'true'; // Use in-memory storage for deployment
 const SSE_RETRY_MS = (() => {
   const v = Number(process.env.SSE_RETRY_MS || 3000);
   return Number.isFinite(v) && v > 0 ? v : 3000;
@@ -152,25 +162,14 @@ function logActivity(type, userId, details = {}) {
     };
 
     // Load existing activities
-    let activities = [];
-    if (fs.existsSync(activityLogFilePath)) {
-      try {
-        const content = fs.readFileSync(activityLogFilePath, 'utf8');
-        // Handle potential BOM
-        const cleanContent = content.replace(/^\uFEFF/, '');
-        activities = JSON.parse(cleanContent);
-        if (!Array.isArray(activities)) activities = [];
-      } catch (e) {
-        console.error('Error reading activity log for append, reinitializing:', e);
-        // Reinitialize corrupted file
-        fs.writeFileSync(activityLogFilePath, '[]', 'utf8');
-        activities = [];
-      }
+    let activities = readJsonFile(activityLogFilePath, []);
+    if (!Array.isArray(activities)) {
+      activities = [];
     }
 
     // Add new activity and save
     activities.push(activity);
-    fs.writeFileSync(activityLogFilePath, JSON.stringify(activities, null, 2));
+    writeJsonFile(activityLogFilePath, activities);
 
     // Broadcast to all connected clients
     broadcast({ type: 'activity:new', activity });
@@ -185,13 +184,8 @@ function logActivity(type, userId, details = {}) {
 // Messages storage functions
 function readMessages() {
   try {
-    if (fs.existsSync(messagesFilePath)) {
-      const content = fs.readFileSync(messagesFilePath, 'utf8');
-      const cleanContent = content.replace(/^\uFEFF/, '');
-      const messages = JSON.parse(cleanContent);
-      return Array.isArray(messages) ? messages : [];
-    }
-    return [];
+    const messages = readJsonFile(messagesFilePath, []);
+    return Array.isArray(messages) ? messages : [];
   } catch (e) {
     console.error('Error reading messages:', e);
     return [];
@@ -202,7 +196,7 @@ function saveMessage(message) {
   try {
     const messages = readMessages();
     messages.push(message);
-    fs.writeFileSync(messagesFilePath, JSON.stringify(messages, null, 2), 'utf8');
+    writeJsonFile(messagesFilePath, messages);
     return true;
   } catch (e) {
     console.error('Error saving message:', e);
@@ -212,7 +206,7 @@ function saveMessage(message) {
 
 function updateMessages(updatedMessages) {
   try {
-    fs.writeFileSync(messagesFilePath, JSON.stringify(updatedMessages, null, 2), 'utf8');
+    writeJsonFile(messagesFilePath, updatedMessages);
     return true;
   } catch (e) {
     console.error('Error updating messages:', e);
@@ -223,13 +217,8 @@ function updateMessages(updatedMessages) {
 // Chat storage functions (per-user AI chat history)
 function readChat() {
   try {
-    if (fs.existsSync(chatFilePath)) {
-      const content = fs.readFileSync(chatFilePath, 'utf8');
-      const cleanContent = content.replace(/^\uFEFF/, '');
-      const data = JSON.parse(cleanContent);
-      return data || {};
-    }
-    return {};
+    const data = readJsonFile(chatFilePath, {});
+    return data || {};
   } catch (e) {
     console.error('Error reading chat:', e);
     return {};
@@ -241,7 +230,7 @@ function saveChatMessage(userId, message) {
     const allChats = readChat();
     if (!allChats[userId]) allChats[userId] = [];
     allChats[userId].push(message);
-    fs.writeFileSync(chatFilePath, JSON.stringify(allChats, null, 2), 'utf8');
+    writeJsonFile(chatFilePath, allChats);
     return true;
   } catch (e) {
     console.error('Error saving chat message:', e);
@@ -253,7 +242,7 @@ function resetUserChat(userId) {
   try {
     const allChats = readChat();
     delete allChats[userId];
-    fs.writeFileSync(chatFilePath, JSON.stringify(allChats, null, 2), 'utf8');
+    writeJsonFile(chatFilePath, allChats);
     return true;
   } catch (e) {
     console.error('Error resetting chat:', e);
@@ -264,13 +253,8 @@ function resetUserChat(userId) {
 // Fields storage functions (document field/variable definitions)
 function readVariables() {
   try {
-    if (fs.existsSync(variablesFilePath)) {
-      const content = fs.readFileSync(variablesFilePath, 'utf8');
-      const cleanContent = content.replace(/^\uFEFF/, '');
-      const data = JSON.parse(cleanContent);
-      return data || {};
-    }
-    return {};
+    const data = readJsonFile(variablesFilePath, {});
+    return data || {};
   } catch (e) {
     console.error('Error reading variables:', e);
     return {};
@@ -281,7 +265,7 @@ function saveVariable(variable) {
   try {
     const variables = readVariables();
     variables[variable.varId] = variable;
-    fs.writeFileSync(variablesFilePath, JSON.stringify(variables, null, 2), 'utf8');
+    writeJsonFile(variablesFilePath, variables);
     return true;
   } catch (e) {
     console.error('Error saving variable:', e);
@@ -622,6 +606,57 @@ const messagesFilePath = path.join(dataAppDir, 'messages.json');
 const chatFilePath = path.join(dataAppDir, 'chat.json');
 const variablesFilePath = path.join(dataAppDir, 'variables.json');
 
+// In-memory storage for deployment (when file system is ephemeral)
+const memoryStorage = {
+  state: null,
+  activityLog: [],
+  messages: [],
+  chat: [],
+  variables: null,
+  approvals: null
+};
+
+// Helper functions for file operations that work with both file system and memory storage
+function readJsonFile(filePath, defaultValue = null) {
+  if (useMemoryStorage) {
+    // Map file paths to memory storage keys
+    if (filePath.includes('state.json')) return memoryStorage.state || defaultValue;
+    if (filePath.includes('activity-log.json')) return memoryStorage.activityLog || defaultValue;
+    if (filePath.includes('messages.json')) return memoryStorage.messages || defaultValue;
+    if (filePath.includes('chat.json')) return memoryStorage.chat || defaultValue;
+    if (filePath.includes('variables.json')) return memoryStorage.variables || defaultValue;
+    if (filePath.includes('approvals.json')) return memoryStorage.approvals || defaultValue;
+    return defaultValue;
+  } else {
+    try {
+      if (fs.existsSync(filePath)) {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      }
+      return defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  }
+}
+
+function writeJsonFile(filePath, data) {
+  if (useMemoryStorage) {
+    // Map file paths to memory storage keys
+    if (filePath.includes('state.json')) memoryStorage.state = data;
+    else if (filePath.includes('activity-log.json')) memoryStorage.activityLog = data;
+    else if (filePath.includes('messages.json')) memoryStorage.messages = data;
+    else if (filePath.includes('chat.json')) memoryStorage.chat = data;
+    else if (filePath.includes('variables.json')) memoryStorage.variables = data;
+    else if (filePath.includes('approvals.json')) memoryStorage.approvals = data;
+  } else {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (error) {
+      console.error('Error writing file:', filePath, error);
+    }
+  }
+}
+
 // Ensure working directories exist
 for (const dir of [dataWorkingDir, workingDocumentsDir, workingExhibitsDir, compiledDir, versionsDir]) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -646,8 +681,8 @@ const serverState = {
 // Load persisted state if available
 const stateFilePath = path.join(dataAppDir, 'state.json');
 try {
-  if (fs.existsSync(stateFilePath)) {
-    const saved = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
+  const saved = readJsonFile(stateFilePath);
+  if (saved) {
     if (saved.checkedOutBy === null || typeof saved.checkedOutBy === 'string') serverState.checkedOutBy = saved.checkedOutBy;
     if (typeof saved.lastUpdated === 'string') serverState.lastUpdated = saved.lastUpdated;
     if (typeof saved.revision === 'number') serverState.revision = saved.revision;
@@ -662,7 +697,18 @@ try {
 
 function persistState() {
   try {
-    fs.writeFileSync(stateFilePath, JSON.stringify({ checkedOutBy: serverState.checkedOutBy, lastUpdated: serverState.lastUpdated, revision: serverState.revision, documentVersion: serverState.documentVersion, title: serverState.title, status: serverState.status, updatedBy: serverState.updatedBy, updatedPlatform: serverState.updatedPlatform, approvalsRevision: serverState.approvalsRevision }, null, 2));
+    const stateData = { 
+      checkedOutBy: serverState.checkedOutBy, 
+      lastUpdated: serverState.lastUpdated, 
+      revision: serverState.revision, 
+      documentVersion: serverState.documentVersion, 
+      title: serverState.title, 
+      status: serverState.status, 
+      updatedBy: serverState.updatedBy, 
+      updatedPlatform: serverState.updatedPlatform, 
+      approvalsRevision: serverState.approvalsRevision 
+    };
+    writeJsonFile(stateFilePath, stateData);
   } catch {}
 }
 
@@ -806,22 +852,49 @@ function broadcast(event) {
 // Express app
 const app = express();
 app.use(compression());
+
+// Production security headers
+if (isProduction) {
+  app.use((req, res, next) => {
+    // Security headers for production
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+  });
+}
+
 // JSON body limit must accommodate DOCX base64 payloads for save-progress
 app.use(express.json({ limit: '50mb' }));
 
-// CORS for Yeoman add-in dev server
+// CORS configuration for development and production
 const allowedOrigins = new Set([
   ADDIN_DEV_ORIGIN,
+  // Add production origins for Render deployment
+  ...(isRender ? [
+    'https://contract-doc-addin.onrender.com',
+    'https://contract-doc-server.onrender.com'
+  ] : [])
 ]);
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.has(origin)) {
+  
+  // Allow same-origin requests (web client)
+  if (!origin) {
+    return next();
+  }
+  
+  // Check if origin is allowed
+  if (allowedOrigins.has(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   }
+  
   if (req.method === 'OPTIONS') return res.status(204).end();
   next();
 });
@@ -843,7 +916,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // WebSocket reverse proxy for collaboration under same HTTPS origin
-const COLLAB_TARGET = process.env.COLLAB_TARGET || 'http://localhost:4002';
+const COLLAB_TARGET = process.env.COLLAB_TARGET || SUPERDOC_BASE_URL;
 const collabProxy = createProxyMiddleware({
   target: COLLAB_TARGET,
   changeOrigin: true,
@@ -932,6 +1005,11 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Simple health check for Render
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // API v1
 app.get('/api/v1/health', (req, res) => {
   const llmEnabled = (LLM_PROVIDER === 'ollama') ||
@@ -974,22 +1052,8 @@ app.get('/api/v1/users', (req, res) => {
 
 app.get('/api/v1/activity', (req, res) => {
   try {
-    if (!fs.existsSync(activityLogFilePath)) {
-      // Initialize empty file if it doesn't exist
-      fs.writeFileSync(activityLogFilePath, '[]', 'utf8');
-      return res.json({ activities: [] });
-    }
-
-    let activities = [];
-    try {
-      const content = fs.readFileSync(activityLogFilePath, 'utf8');
-      // Handle potential BOM
-      const cleanContent = content.replace(/^\uFEFF/, '');
-      activities = JSON.parse(cleanContent);
-    } catch (parseError) {
-      console.error('Error parsing activity log, reinitializing:', parseError);
-      // Reinitialize corrupted file
-      fs.writeFileSync(activityLogFilePath, '[]', 'utf8');
+    let activities = readJsonFile(activityLogFilePath, []);
+    if (!Array.isArray(activities)) {
       activities = [];
     }
 
@@ -2527,6 +2591,19 @@ app.get('/api/v1/events', (req, res) => {
 
 // HTTPS preferred; try Office dev certs, then PFX, else fail (unless ALLOW_HTTP=true)
 function tryCreateHttpsServer() {
+  // Check if HTTP is explicitly allowed first
+  const allowHttp = String(process.env.ALLOW_HTTP || '').toLowerCase() === 'true' || 
+                   String(process.env.NODE_ENV || '').toLowerCase() === 'test' ||
+                   isRender; // Render.com provides HTTPS at edge
+  if (allowHttp) {
+    if (isRender) {
+      console.log('🌐 Render.com detected - HTTPS handled at edge, using HTTP internally');
+    } else {
+      console.warn('⚠️ ALLOW_HTTP=true - HTTPS disabled for development');
+    }
+    return null;
+  }
+
   try {
     // 1) Office dev certs (shared with add-in 4000)
     try {
@@ -2552,8 +2629,7 @@ function tryCreateHttpsServer() {
       return https.createServer(opts, app);
     }
   } catch { /* ignore */ }
-  const allowHttp = String(process.env.ALLOW_HTTP || '').toLowerCase() === 'true' || String(process.env.NODE_ENV || '').toLowerCase() === 'test';
-  if (allowHttp) return null;
+  
   throw new Error('No HTTPS certificate available. Install Office dev certs or provide server/config/dev-cert.pfx. Set ALLOW_HTTP=true to use HTTP for dev only.');
 }
 
@@ -2579,22 +2655,40 @@ function initializeVariables() {
   }
 }
 
-// Initialize on startup
-initializeVariables();
+// Initialize on startup - non-blocking
+setImmediate(() => {
+  try {
+    initializeVariables();
+  } catch (error) {
+    console.warn('⚠️ Failed to initialize variables:', error.message);
+    console.log('📦 Server will continue with default variables');
+  }
+});
 
 const httpsServer = tryCreateHttpsServer();
 let serverInstance;
 if (httpsServer) {
   serverInstance = httpsServer;
-  httpsServer.listen(APP_PORT, () => {
-    console.log(`HTTPS server running on https://localhost:${APP_PORT}`);
-    console.log(`SuperDoc backend: ${SUPERDOC_BASE_URL}`);
+  httpsServer.listen(APP_PORT, '0.0.0.0', () => {
+    console.log(`🚀 HTTPS Server listening on 0.0.0.0:${APP_PORT}`);
+    if (isRender) {
+      console.log(`🌐 Render deployment - HTTPS handled at edge`);
+    } else {
+      console.log(`🔒 HTTPS server running on https://localhost:${APP_PORT}`);
+    }
+    console.log(`🔗 SuperDoc backend: ${SUPERDOC_BASE_URL}`);
   });
 } else {
   serverInstance = http.createServer(app);
-  serverInstance.listen(APP_PORT, () => {
-    console.warn(`ALLOW_HTTP=true enabled. HTTP server running on http://localhost:${APP_PORT}`);
-    console.warn('Install Office dev certs (preferred) or place dev-cert.pfx under server/config to enable HTTPS.');
+  serverInstance.listen(APP_PORT, '0.0.0.0', () => {
+    console.log(`🚀 HTTP Server listening on 0.0.0.0:${APP_PORT}`);
+    if (isRender) {
+      console.log(`🌐 Render deployment - HTTPS handled at edge`);
+    } else {
+      console.warn(`⚠️ ALLOW_HTTP=true enabled. HTTP server running on http://localhost:${APP_PORT}`);
+      console.warn('🔒 Install Office dev certs (preferred) or place dev-cert.pfx under server/config to enable HTTPS.');
+    }
+    console.log(`🔗 SuperDoc backend: ${SUPERDOC_BASE_URL}`);
   });
 }
 

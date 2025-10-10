@@ -5,7 +5,7 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 const urlDev = "https://localhost:4000/";
-const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+const urlProd = "https://contract-doc-addin.onrender.com/"; // Production deployment location
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();

@@ -85,7 +85,16 @@ export function mountSuperdoc(options) {
     pagination: options.pagination ?? true,
     rulers: options.rulers ?? true,
     // Prefer same-origin collab proxy; choose ws/wss based on page protocol
-    collab: { url: (function(){ try { const p = location.protocol === 'http:' ? 'ws' : 'wss'; return `${p}://localhost:4001/collab`; } catch { return 'wss://localhost:4001/collab'; } })() },
+    collab: { url: (function(){ 
+      try { 
+        const p = location.protocol === 'http:' ? 'ws' : 'wss'; 
+        // Use current origin for production, localhost for development
+        const host = window.location.hostname === 'localhost' ? 'localhost:4001' : window.location.host;
+        return `${p}://${host}/collab`; 
+      } catch { 
+        return 'wss://localhost:4001/collab'; 
+      } 
+    })() },
     onReady: (e) => console.log('SuperDoc ready', e),
     onEditorCreate: (e) => {
       console.log('Editor created (wrapper)', e);

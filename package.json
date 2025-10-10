@@ -1,0 +1,41 @@
+{
+  "name": "contract-doc-v3",
+  "version": "1.0.0",
+  "description": "WordFTW: Contract Authoring Platform - Cross-platform collaborative document editing",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev:collab\" \"npm run dev:server\" \"npm run dev:addin\"",
+    "dev:server": "cd server && npm ci && cross-env NODE_ENV=development node src/server.js",
+    "dev:collab": "cd collab && npm ci && cross-env NODE_ENV=development node server.js",
+    "dev:addin": "cd addin && npm ci && npm run dev-server",
+    "build:addin": "cd addin && npm ci && npm run build",
+    "start": "npm run dev",
+    "install:all": "npm ci && cd server && npm ci && cd ../collab && npm ci && cd ../addin && npm ci",
+    "test": "cd server && npm test",
+    "status": "echo 'Checking service status...' && node -e \"console.log('Services status check - use individual service commands for detailed status')\"",
+    "stop": "echo 'To stop services, use Ctrl+C in the terminal where they are running'"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3"
+  },
+  "keywords": [
+    "office-addin",
+    "collaborative-editing",
+    "contract-authoring",
+    "word",
+    "react",
+    "yjs",
+    "hocuspocus"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joshuadotson/contract-doc-v3.git"
+  }
+}
