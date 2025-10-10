@@ -83,7 +83,9 @@ const server = http.createServer((req, res) => {
   }
 
   // Serve static files
-  let filePath = path.join(distPath, req.url === "/" ? "taskpane.html" : req.url);
+  // Strip query parameters for file path resolution
+  const urlPath = req.url.split('?')[0];
+  let filePath = path.join(distPath, urlPath === "/" ? "taskpane.html" : urlPath);
 
   const extname = String(path.extname(filePath)).toLowerCase();
   const mimeType = mimeTypes[extname] || "application/octet-stream";
