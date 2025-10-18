@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Commenting Prototype</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>Commenting Prototype</h1>
+      <p class="subtitle">Three panels: Comments (in‑doc), Messages (external), Summary/Controls</p>
+    </header>
+
+    <main class="grid">
+      <section class="panel" id="comments">
+        <div class="panel__header">
+          <h2>Comments <span class="badge" id="commentsBadge">0</span></h2>
+          <div class="filters">
+            <label><input type="checkbox" id="commentsFilterInternal" checked /> Internal</label>
+            <label><input type="checkbox" id="commentsFilterExternal" checked /> External</label>
+            <label><input type="checkbox" id="commentsFilterPrivileged" /> Privileged</label>
+          </div>
+        </div>
+        <div class="panel__body" id="commentsList"></div>
+        <div class="panel__footer">
+          <button id="addCommentBtn">Add Comment (in‑doc)</button>
+        </div>
+      </section>
+
+      <section class="panel" id="messages">
+        <div class="panel__header">
+          <h2>Messages <span class="badge" id="messagesBadge">0</span></h2>
+          <div class="filters">
+            <label><input type="checkbox" id="messagesFilterInternal" /> Internal</label>
+            <label><input type="checkbox" id="messagesFilterExternal" checked /> External</label>
+            <label><input type="checkbox" id="messagesFilterPrivileged" /> Privileged</label>
+          </div>
+        </div>
+        <div class="panel__body" id="messagesList"></div>
+        <div class="panel__footer">
+          <button id="addMessageBtn">New Message Thread</button>
+        </div>
+      </section>
+
+      <section class="panel" id="summary">
+        <div class="panel__header">
+          <h2>Summary & Controls</h2>
+        </div>
+        <div class="panel__body">
+          <div class="summary-cards" id="summaryCards"></div>
+          <div class="divider"></div>
+          <div class="controls">
+            <h3>Export/Print Options</h3>
+            <label><input type="checkbox" id="optIncludeInternal" /> Include Internal</label>
+            <label><input type="checkbox" id="optIncludePrivileged" /> Include Privileged</label>
+            <button id="simulateExportBtn">Simulate Export</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="main.js"></script>
+  </body>
+  </html>
+
+

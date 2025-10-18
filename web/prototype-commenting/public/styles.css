@@ -1,0 +1,49 @@
+:root {
+  --bg: #fafafa;
+  --fg: #0f172a;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --brand: #6d5ef1;
+  --priv: #b91c1c;
+  --internal: #2563eb;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.site-header { padding: 12px 16px; border-bottom: 1px solid var(--border); background: #fff; position: sticky; top: 0; z-index: 10; }
+.site-header h1 { margin: 0; font-size: 18px; }
+.subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 12px; height: calc(100vh - 70px); }
+
+.panel { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--border); background: #fff; border-radius: 8px; overflow: hidden; }
+.panel__header { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.panel__header h2 { margin: 0; font-size: 14px; }
+.filters { display: flex; gap: 10px; color: var(--muted); font-size: 12px; }
+.panel__body { padding: 10px 12px; overflow: auto; flex: 1; }
+.panel__footer { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+
+.badge { background: var(--brand); color: #fff; border-radius: 10px; padding: 2px 6px; font-size: 11px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.chip--priv { border-color: var(--priv); color: var(--priv); }
+.chip--internal { border-color: var(--internal); color: var(--internal); }
+
+.item { border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+.item__meta { display: flex; gap: 6px; margin-bottom: 6px; }
+.item__text { font-size: 13px; }
+.item__footer { display: flex; gap: 8px; margin-top: 8px; }
+button { appearance: none; border: 1px solid var(--border); background: #fff; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+.summary-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.card { border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
+.divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+
