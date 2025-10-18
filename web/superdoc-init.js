@@ -106,6 +106,15 @@ export function mountSuperdoc(options) {
     collab: { url: (function(){ try { const p = location.protocol === 'http:' ? 'ws' : 'wss'; return `${p}://localhost:4001/collab`; } catch { return 'wss://localhost:4001/collab'; } })() },
     onReady: (e) => {
       console.log('SuperDoc ready', e);
+      // If a comments container was configured, ensure the sidebar list is attached
+      try {
+        if (commentsModule && commentsModule.element && typeof superdoc.addCommentsList === 'function') {
+          const el = (typeof commentsModule.element === 'string')
+            ? document.querySelector(commentsModule.element)
+            : commentsModule.element;
+          if (el) superdoc.addCommentsList(el);
+        }
+      } catch {}
       // Debug: Check toolbar width
       try {
         const toolbarEl = document.querySelector('#superdoc-toolbar');
