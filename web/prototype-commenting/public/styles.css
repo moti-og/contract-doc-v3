@@ -22,6 +22,12 @@ body {
 .subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
 
 .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 12px; height: calc(100vh - 70px); }
+
+.frame { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--border); background: #fff; border-radius: 8px; overflow: hidden; }
+.frame__header { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); background: #f9fafb; }
+.frame__body { display: grid; grid-template-columns: 58% 42%; min-height: 0; flex: 1; }
+.doc { border-right: 1px solid var(--border); padding: 12px; overflow: auto; background: #fff; }
+.doc:before { content: "FAKE DOCUMENT\A\A 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit.\A 2. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\A 3. Ut enim ad minim veniam, quis nostrud exercitation ullamco.\A 4. Duis aute irure dolor in reprehenderit in voluptate velit.\A 5. Excepteur sint occaecat cupidatat non proident."; white-space: pre-wrap; color: #374151; font-size: 13px; }
 .body--split { display: grid; grid-template-columns: 44% 56%; gap: 10px; }
 .split__list { border-right: 1px dashed var(--border); padding-right: 8px; overflow: auto; }
 .split__detail { overflow: auto; }

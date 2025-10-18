@@ -13,77 +13,95 @@
     </header>
 
     <main class="grid">
-      <!-- Option A: Split-view Threads + Details (editor-centric) -->
-      <section class="panel" id="optionA">
-        <div class="panel__header">
-          <h2>Option A • Split View <span class="badge" id="aBadge">0</span></h2>
-          <div class="filters">
-            <label><input type="checkbox" id="aFilterInternal" checked /> Internal</label>
-            <label><input type="checkbox" id="aFilterExternal" checked /> External</label>
-            <label><input type="checkbox" id="aFilterPrivileged" /> Privileged</label>
-          </div>
+      <!-- Frame A -->
+      <div class="frame" id="frameA">
+        <div class="frame__header">Draft • Redlined & Signed</div>
+        <div class="frame__body">
+          <div class="doc" id="docA"></div>
+          <section class="panel" id="optionA">
+            <div class="panel__header">
+              <h2>Option A • Split View <span class="badge" id="aBadge">0</span></h2>
+              <div class="filters">
+                <label><input type="checkbox" id="aFilterInternal" checked /> Internal</label>
+                <label><input type="checkbox" id="aFilterExternal" checked /> External</label>
+                <label><input type="checkbox" id="aFilterPrivileged" /> Privileged</label>
+              </div>
+            </div>
+            <div class="panel__body body--split">
+              <div class="split__list" id="aList"></div>
+              <div class="split__detail" id="aDetail"><div class="placeholder">Select a thread</div></div>
+            </div>
+            <div class="panel__footer"><button id="aAddComment">Add Comment</button><button id="aAddMessage">New Message</button></div>
+          </section>
         </div>
-        <div class="panel__body body--split">
-          <div class="split__list" id="aList"></div>
-          <div class="split__detail" id="aDetail"><div class="placeholder">Select a thread</div></div>
-        </div>
-        <div class="panel__footer"><button id="aAddComment">Add Comment</button><button id="aAddMessage">New Message</button></div>
-      </section>
+      </div>
 
-      <!-- Option B: Anchor-first Map + Channel Tabs (reviewer-centric) -->
-      <section class="panel" id="optionB">
-        <div class="panel__header">
-          <h2>Option B • Anchor Map <span class="badge" id="bBadge">0</span></h2>
-          <div class="filters">
-            <label><input type="checkbox" id="bFilterInternal" checked /> Internal</label>
-            <label><input type="checkbox" id="bFilterExternal" checked /> External</label>
-            <label><input type="checkbox" id="bFilterPrivileged" /> Privileged</label>
-          </div>
+      <!-- Frame B -->
+      <div class="frame" id="frameB">
+        <div class="frame__header">Draft • Redlined & Signed</div>
+        <div class="frame__body">
+          <div class="doc" id="docB"></div>
+          <section class="panel" id="optionB">
+            <div class="panel__header">
+              <h2>Option B • Anchor Map <span class="badge" id="bBadge">0</span></h2>
+              <div class="filters">
+                <label><input type="checkbox" id="bFilterInternal" checked /> Internal</label>
+                <label><input type="checkbox" id="bFilterExternal" checked /> External</label>
+                <label><input type="checkbox" id="bFilterPrivileged" /> Privileged</label>
+              </div>
+            </div>
+            <div class="panel__body">
+              <div class="anchor-map" id="bMap"></div>
+              <div class="tabs">
+                <button class="tab tab--active" data-tab="comments" id="bTabComments">Comments</button>
+                <button class="tab" data-tab="messages" id="bTabMessages">Messages</button>
+              </div>
+              <div class="grouped" id="bContent"></div>
+            </div>
+            <div class="panel__footer"><button id="bAddComment">Add Comment</button><button id="bAddMessage">New Message</button></div>
+          </section>
         </div>
-        <div class="panel__body">
-          <div class="anchor-map" id="bMap"></div>
-          <div class="tabs">
-            <button class="tab tab--active" data-tab="comments" id="bTabComments">Comments</button>
-            <button class="tab" data-tab="messages" id="bTabMessages">Messages</button>
-          </div>
-          <div class="grouped" id="bContent"></div>
-        </div>
-        <div class="panel__footer"><button id="bAddComment">Add Comment</button><button id="bAddMessage">New Message</button></div>
-      </section>
+      </div>
 
-      <!-- Option C: Unified Inbox + Facets (manager/triage-centric) -->
-      <section class="panel" id="optionC">
-        <div class="panel__header">
-          <h2>Option C • Unified Inbox <span class="badge" id="cBadge">0</span></h2>
-          <div class="filters facets">
-            <select id="cFacetChannel">
-              <option value="all">All</option>
-              <option value="comments">Comments</option>
-              <option value="messages">Messages</option>
-            </select>
-            <select id="cFacetVisibility">
-              <option value="both">Internal+External</option>
-              <option value="internal">Internal only</option>
-              <option value="external">External only</option>
-            </select>
-            <select id="cFacetPrivileged">
-              <option value="nonpriv">Non-privileged</option>
-              <option value="priv">Privileged</option>
-              <option value="both">Both</option>
-            </select>
-            <select id="cFacetState">
-              <option value="open">Open/Unresolved</option>
-              <option value="all">All</option>
-            </select>
-          </div>
+      <!-- Frame C -->
+      <div class="frame" id="frameC">
+        <div class="frame__header">Draft • Redlined & Signed</div>
+        <div class="frame__body">
+          <div class="doc" id="docC"></div>
+          <section class="panel" id="optionC">
+            <div class="panel__header">
+              <h2>Option C • Unified Inbox <span class="badge" id="cBadge">0</span></h2>
+              <div class="filters facets">
+                <select id="cFacetChannel">
+                  <option value="all">All</option>
+                  <option value="comments">Comments</option>
+                  <option value="messages">Messages</option>
+                </select>
+                <select id="cFacetVisibility">
+                  <option value="both">Internal+External</option>
+                  <option value="internal">Internal only</option>
+                  <option value="external">External only</option>
+                </select>
+                <select id="cFacetPrivileged">
+                  <option value="nonpriv">Non-privileged</option>
+                  <option value="priv">Privileged</option>
+                  <option value="both">Both</option>
+                </select>
+                <select id="cFacetState">
+                  <option value="open">Open/Unresolved</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+            </div>
+            <div class="panel__body" id="cFeed"></div>
+            <div class="panel__footer">
+              <label><input type="checkbox" id="cIncludeInternal" /> Include Internal</label>
+              <label><input type="checkbox" id="cIncludePrivileged" /> Include Privileged</label>
+              <button id="cExport">Simulate Export</button>
+            </div>
+          </section>
         </div>
-        <div class="panel__body" id="cFeed"></div>
-        <div class="panel__footer">
-          <label><input type="checkbox" id="cIncludeInternal" /> Include Internal</label>
-          <label><input type="checkbox" id="cIncludePrivileged" /> Include Privileged</label>
-          <button id="cExport">Simulate Export</button>
-        </div>
-      </section>
+      </div>
     </main>
 
     <script src="main.js"></script>
