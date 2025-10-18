@@ -382,7 +382,7 @@ try {
       try { g.superdocInstance = mountSuperdoc({ selector, toolbar, document: doc, documentMode: mode, pagination: true, rulers: true }); } catch {}
       return g.superdocInstance || null;
     };
-    g.SuperDocBridge.open = function open(doc, options = {}) {
+    g.SuperDocBridge.open = async function open(doc, options = {}) {
       const selector = '#superdoc';
       const toolbar = '#superdoc-toolbar';
       try {
@@ -399,11 +399,23 @@ try {
       
       console.log('🔄 SuperDocBridge.open() - Role:', userRole, '| Mode:', documentMode, '| User:', getUserDisplayName());
       
-      try { 
+      try {
+        // Resolve a safe document URL: prefer working, fallback to canonical
+        let resolvedDoc = doc;
+        try {
+          const origin = (typeof location !== 'undefined') ? location.origin : '';
+          const workingUrl = `${origin}/documents/working/default.docx`;
+          const canonicalUrl = `${origin}/documents/canonical/default.docx`;
+          if (!resolvedDoc) {
+            try { const h = await fetch(workingUrl, { method: 'HEAD' }); resolvedDoc = (h && h.ok) ? workingUrl : canonicalUrl; }
+            catch { resolvedDoc = canonicalUrl; }
+          }
+        } catch {}
+
         g.superdocInstance = mountSuperdoc({ 
           selector, 
           toolbar, 
-          document: doc || `${location.origin}/documents/working/default.docx`, 
+          document: resolvedDoc, 
           role: userRole,
           documentMode: documentMode,
           user: {

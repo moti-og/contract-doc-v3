@@ -4930,10 +4930,10 @@
           React.createElement('div', { key: 'wrap-workflow', style: { display: (activeTab === 'Workflow' ? 'block' : 'none') } }, React.createElement(WorkflowApprovalsPanel, { key: 'workflow' })),
           React.createElement('div', { key: 'wrap-messaging', style: { display: (activeTab === 'Messaging' ? 'block' : 'none') } }, React.createElement(MessagingPanel, { key: 'messaging' })),
           React.createElement('div', { key: 'wrap-versions', style: { display: (activeTab === 'Versions' ? 'block' : 'none') } }, React.createElement(VersionsPanel, { key: 'versions' })),
-          // New Comments tab: host SuperDoc comments sidebar
-          React.createElement('div', { key: 'wrap-comments', style: { display: (activeTab === 'Comments' ? 'flex' : 'none'), flex: 1, height: '100%', flexDirection: 'column' } }, [
+          // New Comments tab: host SuperDoc comments sidebar only when active
+          (activeTab === 'Comments' ? React.createElement('div', { key: 'wrap-comments', style: { display: 'flex', flex: 1, height: '100%', flexDirection: 'column' } }, [
             React.createElement('div', { key: 'comments-container', id: 'comments-container', style: { flex: 1, minHeight: 0, overflowY: 'auto', background: '#fafafa', borderTop: '1px solid #e5e7eb' } })
-          ]),
+          ]) : null),
           React.createElement('div', { key: 'wrap-activity', style: { display: (activeTab === 'Activity' ? 'flex' : 'none'), flex: 1, height: '100%', flexDirection: 'column' } }, React.createElement(ActivityPanel, { key: 'activity', isActive: activeTab === 'Activity' })),
           React.createElement('div', { key: 'wrap-compare', style: { display: (activeTab === 'Comparison' ? 'block' : 'none') } }, React.createElement(ComparisonTab, { key: 'compare' })),
           React.createElement('div', { key: 'wrap-variables', style: { display: (activeTab === 'Variables' ? 'block' : 'none') } }, React.createElement(VariablesPanel, { key: 'variables' }))
@@ -4949,14 +4949,13 @@
 
       // When Comments tab is activated, remount SuperDoc with the comments container so the sidebar renders here
       React.useEffect(() => {
-        if (activeTab === 'Comments') {
-          try {
-            const bridge = (typeof window !== 'undefined') ? window.SuperDocBridge : null;
-            if (bridge && typeof bridge.open === 'function') {
-              bridge.open('/documents/working/default.docx');
-            }
-          } catch {}
-        }
+        if (activeTab !== 'Comments') return;
+        try {
+          const bridge = (typeof window !== 'undefined') ? window.SuperDocBridge : null;
+          if (bridge && typeof bridge.open === 'function') {
+            bridge.open(); // Let bridge resolve a safe doc URL
+          }
+        } catch {}
       }, [activeTab]);
 
       const container = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 } }, [topPanel, assistantPanel]);
