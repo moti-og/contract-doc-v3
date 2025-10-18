@@ -4947,6 +4947,18 @@
         (confirm ? React.createElement(ConfirmModal, { title: confirm.title, message: confirm.message, onConfirm: confirm.onConfirm, onClose: onConfirmClose }) : null)
       ]);
 
+      // When Comments tab is activated, remount SuperDoc with the comments container so the sidebar renders here
+      React.useEffect(() => {
+        if (activeTab === 'Comments') {
+          try {
+            const bridge = (typeof window !== 'undefined') ? window.SuperDocBridge : null;
+            if (bridge && typeof bridge.open === 'function') {
+              bridge.open('/documents/working/default.docx');
+            }
+          } catch {}
+        }
+      }, [activeTab]);
+
       const container = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 } }, [topPanel, assistantPanel]);
 
       return React.createElement(ThemeProvider, null, React.createElement(React.Fragment, null, [container, React.createElement(BannerDropEffect, { key: 'banner' }), React.createElement(ApprovalCelebration, { key: 'celebration' })]));

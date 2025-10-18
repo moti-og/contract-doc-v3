@@ -67,7 +67,7 @@
           },
           pagination: true,
           rulers: true,
-          // No external comments container; SuperDoc renders comments inline
+          commentsContainer: '#comments-container',
           onCommentsUpdate: handleCommentEvent
         });
         console.log('✅ SuperDoc mounted in web viewer with comments enabled');
