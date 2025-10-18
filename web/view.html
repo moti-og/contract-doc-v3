@@ -67,7 +67,7 @@
           },
           pagination: true,
           rulers: true,
-          commentsContainer: '#comments-container',
+          // Comments sidebar is mounted by React only when Comments tab is active
           onCommentsUpdate: handleCommentEvent
         });
         console.log('✅ SuperDoc mounted in web viewer with comments enabled');
@@ -89,7 +89,6 @@
     </div>
     <aside id="pane">
       <div id="app-root"></div>
-      <div id="comments-container"></div>
     </aside>
   </div>
   <script>
