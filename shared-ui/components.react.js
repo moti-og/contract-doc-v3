@@ -4948,12 +4948,16 @@
       ]);
 
       // When Comments tab is activated, remount SuperDoc with the comments container so the sidebar renders here
+      const didMountCommentsRef = React.useRef(false);
       React.useEffect(() => {
-        if (activeTab !== 'Comments') return;
+        if (activeTab !== 'Comments') { didMountCommentsRef.current = false; return; }
+        if (didMountCommentsRef.current) return;
+        didMountCommentsRef.current = true;
         try {
           const bridge = (typeof window !== 'undefined') ? window.SuperDocBridge : null;
           if (bridge && typeof bridge.open === 'function') {
-            bridge.open(); // Let bridge resolve a safe doc URL
+            // Defer slightly to ensure #comments-container is in the DOM and laid out
+            setTimeout(() => { try { bridge.open(); } catch {} }, 50);
           }
         } catch {}
       }, [activeTab]);
