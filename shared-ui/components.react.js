@@ -4779,6 +4779,7 @@
       const aiLabelRef = React.useRef(null);
       const wfLabelRef = React.useRef(null);
       const msgLabelRef = React.useRef(null);
+      const cmtLabelRef = React.useRef(null);
       
       // Factory reset: navigate back to AI tab
       React.useEffect(() => {
@@ -4823,11 +4824,13 @@
                 ? msgLabelRef.current
                 : (activeTab === 'Versions'
                   ? verLabelRef.current
-                  : (activeTab === 'Activity'
+                : (activeTab === 'Activity'
                     ? actLabelRef.current
                     : (activeTab === 'Comparison'
                       ? cmpLabelRef.current
-                      : variablesLabelRef.current))))));
+                      : (activeTab === 'Comments'
+                        ? cmtLabelRef.current
+                        : variablesLabelRef.current)))))));
           if (!bar || !labelEl) return;
           const barRect = bar.getBoundingClientRect();
           const labRect = labelEl.getBoundingClientRect();
@@ -4887,6 +4890,12 @@
             style: { background: 'transparent', border: 'none', padding: '8px 6px', cursor: 'pointer', color: activeTab === 'Versions' ? '#111827' : '#6B7280', fontWeight: 600 }
           }, React.createElement('span', { ref: verLabelRef, style: { display: 'inline-block' } }, 'Versions')),
           React.createElement('button', {
+            key: 'tab-comments',
+            className: activeTab === 'Comments' ? 'tab tab--active' : 'tab',
+            onClick: () => setActiveTab('Comments'),
+            style: { background: 'transparent', border: 'none', padding: '8px 6px', cursor: 'pointer', color: activeTab === 'Comments' ? '#111827' : '#6B7280', fontWeight: 600 }
+          }, React.createElement('span', { ref: cmtLabelRef, style: { display: 'inline-block' } }, 'Comments')),
+          React.createElement('button', {
             key: 'tab-activity',
             className: activeTab === 'Activity' ? 'tab tab--active' : 'tab',
             onClick: () => setActiveTab('Activity'),
@@ -4921,6 +4930,10 @@
           React.createElement('div', { key: 'wrap-workflow', style: { display: (activeTab === 'Workflow' ? 'block' : 'none') } }, React.createElement(WorkflowApprovalsPanel, { key: 'workflow' })),
           React.createElement('div', { key: 'wrap-messaging', style: { display: (activeTab === 'Messaging' ? 'block' : 'none') } }, React.createElement(MessagingPanel, { key: 'messaging' })),
           React.createElement('div', { key: 'wrap-versions', style: { display: (activeTab === 'Versions' ? 'block' : 'none') } }, React.createElement(VersionsPanel, { key: 'versions' })),
+          // New Comments tab: host SuperDoc comments sidebar
+          React.createElement('div', { key: 'wrap-comments', style: { display: (activeTab === 'Comments' ? 'flex' : 'none'), flex: 1, height: '100%', flexDirection: 'column' } }, [
+            React.createElement('div', { key: 'comments-container', id: 'comments-container', style: { flex: 1, minHeight: 0, overflowY: 'auto', background: '#fafafa', borderTop: '1px solid #e5e7eb' } })
+          ]),
           React.createElement('div', { key: 'wrap-activity', style: { display: (activeTab === 'Activity' ? 'flex' : 'none'), flex: 1, height: '100%', flexDirection: 'column' } }, React.createElement(ActivityPanel, { key: 'activity', isActive: activeTab === 'Activity' })),
           React.createElement('div', { key: 'wrap-compare', style: { display: (activeTab === 'Comparison' ? 'block' : 'none') } }, React.createElement(ComparisonTab, { key: 'compare' })),
           React.createElement('div', { key: 'wrap-variables', style: { display: (activeTab === 'Variables' ? 'block' : 'none') } }, React.createElement(VariablesPanel, { key: 'variables' }))

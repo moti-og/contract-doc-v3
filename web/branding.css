@@ -879,11 +879,9 @@ body {
 
 /* Comments container */
 #comments-container {
-  /* Hide comments panel by default in web viewer; prevent it from consuming space */
-  display: none;
-  flex: 0 0 auto;
-  height: 0;
-  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   border-top: 1px solid #eee;
   background: #fafafa;
 }
