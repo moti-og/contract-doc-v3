@@ -403,7 +403,7 @@ try {
         g.superdocInstance = mountSuperdoc({ 
           selector, 
           toolbar, 
-          document: doc, 
+          document: doc || `${location.origin}/documents/working/default.docx`, 
           role: userRole,
           documentMode: documentMode,
           user: {
