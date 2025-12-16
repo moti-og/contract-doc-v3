@@ -18,7 +18,7 @@ export const macInstallInstructions = {
     {
       id: 'step2',
       title: 'Step 2/8: Security Warning',
-      description: 'Do not worry! Mac is automatically blocking this installation so people do not install malware. This is a standard setting. When you double click the file, you will see this security warning. There is nothing we can do about it and it will not do damage. Just click 'done.',
+      description: 'Do not worry! Mac is automatically blocking this installation so people do not install malware. This is a standard setting. When you double click the file, you will see this security warning. There is nothing we can do about it and it will not do damage. Just click "Done" and do not delete! Otherwise you have to reset the cycle.',
       image: '/2-download-error.png',
       imageAlt: 'Security warning dialog',
       backgroundColor: '#f9fafb',

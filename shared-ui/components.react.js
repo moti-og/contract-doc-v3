@@ -1549,13 +1549,15 @@
         setUser: (nextUserId, nextRole) => {
           try {
             const plat = (typeof Office !== 'undefined') ? 'word' : 'web';
+            const previousRole = roleRef.current; // Use ref to get current role
             setUserId(nextUserId);
             if (nextRole) setRole(nextRole);
+            const newRole = nextRole || roleRef.current; // Use ref to get current role if nextRole not provided
             // Update user state bridge for SuperDoc
             try {
               if (typeof window !== 'undefined' && window.userStateBridge) {
                 window.userStateBridge.userId = nextUserId;
-                window.userStateBridge.role = nextRole || window.userStateBridge.role;
+                window.userStateBridge.role = newRole;
                 const user = users.find(u => u.id === nextUserId || u.label === nextUserId);
                 if (user) {
                   window.userStateBridge.displayName = user.label || nextUserId;
@@ -1566,6 +1568,24 @@
             addLog(`Switched to user: ${nextUserId}`, 'user');
             // Reset loadedVersion to 0 when switching users to avoid stale banner state
             setLoadedVersion(0);
+            // Dispatch superdoc:set-mode event when role changes (web only)
+            if (plat === 'web' && previousRole !== newRole) {
+              try {
+                const modeMap = {
+                  'viewer': 'viewing',
+                  'suggester': 'suggesting',
+                  'vendor': 'suggesting',
+                  'editor': 'editing'
+                };
+                const documentMode = modeMap[newRole] || 'editing';
+                window.dispatchEvent(new CustomEvent('superdoc:set-mode', { 
+                  detail: { mode: documentMode, role: newRole, previousRole: previousRole } 
+                }));
+                console.log(`📢 Dispatched superdoc:set-mode: ${previousRole} → ${newRole} (${documentMode})`);
+              } catch (e) {
+                console.warn('Failed to dispatch superdoc:set-mode event:', e);
+              }
+            }
             // Immediately fetch matrix for the new user so buttons (override) reflect correctly
             (async () => {
               try {
@@ -5932,10 +5952,29 @@
     }
 
     function SuperDocHost() {
-      const { documentSource, setLastError, addLog } = React.useContext(StateContext);
+      const { documentSource, setLastError, addLog, currentRole } = React.useContext(StateContext);
       const mountedRef = React.useRef(false);
       const inFlightIdRef = React.useRef(0);
       const blobUrlRef = React.useRef(null);
+      const lastRoleRef = React.useRef(currentRole);
+      
+      // Helper function to remount SuperDoc with current document and role
+      const remountSuperDoc = React.useCallback(async (docConfigUrl, reason) => {
+        if (typeof Office !== 'undefined') return; // Word path not here
+        if (!docConfigUrl) return;
+        
+        try {
+          if (typeof window.SuperDocBridge.open === 'function') {
+            window.SuperDocBridge.open(docConfigUrl);
+            addLog(`doc remount [${reason}]`);
+            console.log(`🔄 SuperDoc remounted due to: ${reason}`);
+          }
+        } catch (e) {
+          console.error('Failed to remount SuperDoc:', e);
+        }
+      }, [addLog]);
+      
+      // Effect: Load document when documentSource changes
       React.useEffect(() => {
         if (typeof Office !== 'undefined') return; // Word path not here
         if (!documentSource) return;
@@ -6012,9 +6051,11 @@
                 window.SuperDocBridge.mount({ selector: '#superdoc', toolbar: '#superdoc-toolbar', document: docConfigUrl, documentMode: 'editing' });
               }
               mountedRef.current = true;
+              lastRoleRef.current = currentRole;
               addLog(`doc open [${origin}] url`);
             } else if (typeof window.SuperDocBridge.open === 'function') {
               window.SuperDocBridge.open(docConfigUrl);
+              lastRoleRef.current = currentRole; // Sync ref on refresh to prevent stale role detection
               addLog(`doc refresh [${origin}] url`);
             }
           } catch (e) {
@@ -6023,7 +6064,60 @@
           }
         })();
         return () => {};
-      }, [documentSource]);
+      }, [documentSource, setLastError, addLog]); // Note: currentRole removed to prevent reload on role change
+      
+      // Effect: Remount SuperDoc when role changes (if document is already loaded)
+      React.useEffect(() => {
+        if (typeof Office !== 'undefined') return; // Word path not here
+        if (!mountedRef.current || !blobUrlRef.current) return; // Document not loaded yet
+        if (lastRoleRef.current === currentRole) return; // Role hasn't changed
+        
+        console.log(`🔄 Role changed from '${lastRoleRef.current}' to '${currentRole}' - remounting SuperDoc`);
+        const docConfigUrl = { id: 'default', type: 'docx', url: blobUrlRef.current };
+        remountSuperDoc(docConfigUrl, 'role change');
+        lastRoleRef.current = currentRole;
+        
+        // Dispatch superdoc:set-mode event as documented
+        try {
+          const modeMap = {
+            'viewer': 'viewing',
+            'suggester': 'suggesting',
+            'vendor': 'suggesting',
+            'editor': 'editing'
+          };
+          const documentMode = modeMap[currentRole] || 'editing';
+          window.dispatchEvent(new CustomEvent('superdoc:set-mode', { 
+            detail: { mode: documentMode, role: currentRole } 
+          }));
+        } catch (e) {
+          console.warn('Failed to dispatch superdoc:set-mode event:', e);
+        }
+      }, [currentRole, remountSuperDoc]);
+      
+      // Effect: Listen for superdoc:set-mode events (as documented in checkin-checkout.md)
+      React.useEffect(() => {
+        if (typeof Office !== 'undefined') return; // Word path not here
+        if (!mountedRef.current || !blobUrlRef.current) return; // Document not loaded yet
+        
+        const handleSetMode = (event) => {
+          try {
+            const { mode, role } = event.detail || {};
+            console.log(`📢 superdoc:set-mode event received:`, { mode, role });
+            if (blobUrlRef.current) {
+              const docConfigUrl = { id: 'default', type: 'docx', url: blobUrlRef.current };
+              remountSuperDoc(docConfigUrl, 'set-mode event');
+            }
+          } catch (e) {
+            console.error('Error handling superdoc:set-mode event:', e);
+          }
+        };
+        
+        window.addEventListener('superdoc:set-mode', handleSetMode);
+        return () => {
+          window.removeEventListener('superdoc:set-mode', handleSetMode);
+        };
+      }, [remountSuperDoc]);
+      
       return null;
     }
 
